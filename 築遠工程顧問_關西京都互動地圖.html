@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>築遠｜關西京都五日行程地圖</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;600;900&family=Noto+Sans+TC:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --ink: #1a1714;
+  --paper: #f7f4ef;
+  --paper2: #ede9e2;
+  --red: #b83a2a;
+  --gold: #c9973a;
+  --muted: #7a6e63;
+  --border: #d8d0c4;
+  --white: #ffffff;
+  --day1: #c0392b;
+  --day2: #2980b9;
+  --day3: #27ae60;
+  --day4: #8e44ad;
+  --day5: #d35400;
+}
+
+body {
+  font-family: 'Noto Sans TC', sans-serif;
+  background: var(--ink);
+  color: var(--paper);
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* HEADER */
+.header {
+  background: var(--ink);
+  padding: 0.75rem 1.25rem;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-shrink: 0;
+}
+.header-title {
+  font-family: 'Noto Serif TC', serif;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  color: var(--paper);
+}
+.header-sub {
+  font-size: 11px;
+  color: rgba(247,244,239,0.5);
+  letter-spacing: 0.1em;
+}
+
+/* TAB BAR */
+.tab-bar {
+  background: rgba(0,0,0,0.4);
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  display: flex;
+  overflow-x: auto;
+  scrollbar-width: none;
+  flex-shrink: 0;
+}
+.tab-bar::-webkit-scrollbar { display: none; }
+.tab-btn {
+  flex: none;
+  padding: 0.65rem 1.2rem;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  font-family: 'Noto Sans TC', sans-serif;
+  font-size: 12px;
+  color: rgba(247,244,239,0.5);
+  white-space: nowrap;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.tab-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.tab-btn.active { color: var(--paper); font-weight: 500; }
+.tab-btn:hover:not(.active) { color: rgba(247,244,239,0.8); }
+.tab-btn[data-day="1"] .tab-dot { background: var(--day1); }
+.tab-btn[data-day="2"] .tab-dot { background: var(--day2); }
+.tab-btn[data-day="3"] .tab-dot { background: var(--day3); }
+.tab-btn[data-day="4"] .tab-dot { background: var(--day4); }
+.tab-btn[data-day="5"] .tab-dot { background: var(--day5); }
+.tab-btn[data-day="1"].active { border-bottom-color: var(--day1); }
+.tab-btn[data-day="2"].active { border-bottom-color: var(--day2); }
+.tab-btn[data-day="3"].active { border-bottom-color: var(--day3); }
+.tab-btn[data-day="4"].active { border-bottom-color: var(--day4); }
+.tab-btn[data-day="5"].active { border-bottom-color: var(--day5); }
+
+/* MAIN LAYOUT */
+.main {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+  position: relative;
+}
+
+/* MAP */
+#map {
+  flex: 1;
+  height: 100%;
+  z-index: 1;
+}
+
+/* SIDEBAR */
+.sidebar {
+  width: 320px;
+  flex-shrink: 0;
+  background: rgba(20,18,16,0.95);
+  border-left: 1px solid rgba(255,255,255,0.08);
+  overflow-y: auto;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+}
+.sidebar::-webkit-scrollbar { width: 4px; }
+.sidebar::-webkit-scrollbar-track { background: transparent; }
+.sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
+
+.sidebar-day-header {
+  padding: 1.25rem 1.25rem 1rem;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  position: sticky;
+  top: 0;
+  background: rgba(20,18,16,0.98);
+  z-index: 10;
+}
+.sidebar-day-label {
+  font-size: 10px;
+  letter-spacing: 0.25em;
+  margin-bottom: 4px;
+  font-weight: 500;
+}
+.sidebar-day-title {
+  font-family: 'Noto Serif TC', serif;
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--paper);
+  line-height: 1.4;
+}
+.sidebar-day-meta {
+  margin-top: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.meta-pill {
+  font-size: 11px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  border: 1px solid rgba(255,255,255,0.12);
+  color: rgba(247,244,239,0.6);
+}
+
+/* STOPS */
+.stops-list { padding: 1rem 0; }
+.stop-item {
+  display: flex;
+  gap: 12px;
+  padding: 0.75rem 1.25rem;
+  cursor: pointer;
+  transition: background 0.15s;
+  position: relative;
+}
+.stop-item:hover { background: rgba(255,255,255,0.04); }
+.stop-item.active-stop { background: rgba(255,255,255,0.07); }
+
+.stop-left {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+  width: 32px;
+}
+.stop-num {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: white;
+  flex-shrink: 0;
+}
+.stop-connector {
+  width: 1px;
+  flex: 1;
+  min-height: 16px;
+  background: rgba(255,255,255,0.1);
+  margin-top: 4px;
+}
+.stop-item:last-child .stop-connector { display: none; }
+
+.stop-content { flex: 1; padding-top: 4px; }
+.stop-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--paper);
+  line-height: 1.4;
+  margin-bottom: 3px;
+}
+.stop-desc {
+  font-size: 11.5px;
+  color: rgba(247,244,239,0.5);
+  line-height: 1.6;
+  margin-bottom: 6px;
+}
+.stop-badges { display: flex; flex-wrap: wrap; gap: 4px; }
+.sbadge {
+  font-size: 10.5px;
+  padding: 2px 8px;
+  border-radius: 3px;
+}
+.sbadge-meal { background: rgba(201,151,58,0.2); color: #e8c87a; }
+.sbadge-hotel { background: rgba(42,79,122,0.35); color: #8ab4d8; }
+.sbadge-tip { background: rgba(58,107,66,0.3); color: #8ec994; }
+.sbadge-warn { background: rgba(184,58,42,0.25); color: #f0a090; }
+
+/* MOBILE TOGGLE */
+.sidebar-toggle {
+  display: none;
+  position: absolute;
+  bottom: 1.5rem;
+  right: 1rem;
+  z-index: 999;
+  background: var(--ink);
+  border: 1px solid rgba(255,255,255,0.2);
+  color: var(--paper);
+  border-radius: 50%;
+  width: 48px;
+  height: 48px;
+  font-size: 18px;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+}
+
+/* Leaflet custom */
+.leaflet-popup-content-wrapper {
+  background: rgba(20,18,16,0.97) !important;
+  border: 1px solid rgba(255,255,255,0.12) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5) !important;
+  color: var(--paper) !important;
+}
+.leaflet-popup-tip { background: rgba(20,18,16,0.97) !important; }
+.leaflet-popup-close-button { color: rgba(247,244,239,0.5) !important; }
+.popup-name {
+  font-family: 'Noto Serif TC', serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--paper);
+  margin-bottom: 4px;
+}
+.popup-desc {
+  font-size: 12px;
+  color: rgba(247,244,239,0.6);
+  line-height: 1.6;
+  margin-bottom: 6px;
+}
+.popup-badge {
+  display: inline-block;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 3px;
+  background: rgba(201,151,58,0.2);
+  color: #e8c87a;
+  margin-top: 2px;
+}
+
+@media (max-width: 640px) {
+  .sidebar {
+    position: absolute;
+    right: 0; top: 0; bottom: 0;
+    width: 85%;
+    transform: translateX(100%);
+    transition: transform 0.3s ease;
+  }
+  .sidebar.open { transform: translateX(0); }
+  .sidebar-toggle { display: flex; }
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <div class="header-title">築遠工程顧問｜關西京都五日行程</div>
+    <div class="header-sub">點選地圖標記或右側景點查看詳情</div>
+  </div>
+</div>
+
+<div class="tab-bar">
+  <button class="tab-btn active" data-day="1" onclick="switchDay(1)">
+    <span class="tab-dot"></span>DAY 1 抵達京都
+  </button>
+  <button class="tab-btn" data-day="2" onclick="switchDay(2)">
+    <span class="tab-dot"></span>DAY 2 清水寺・合掌村
+  </button>
+  <button class="tab-btn" data-day="3" onclick="switchDay(3)">
+    <span class="tab-dot"></span>DAY 3 伊根・天橋立
+  </button>
+  <button class="tab-btn" data-day="4" onclick="switchDay(4)">
+    <span class="tab-dot"></span>DAY 4 大阪自由
+  </button>
+  <button class="tab-btn" data-day="5" onclick="switchDay(5)">
+    <span class="tab-dot"></span>DAY 5 返台
+  </button>
+</div>
+
+<div class="main">
+  <div id="map"></div>
+
+  <div class="sidebar" id="sidebar">
+    <div class="sidebar-day-header" id="sidebar-header">
+      <!-- filled by JS -->
+    </div>
+    <div class="stops-list" id="stops-list">
+      <!-- filled by JS -->
+    </div>
+  </div>
+
+  <button class="sidebar-toggle" id="sidebar-toggle" onclick="toggleSidebar()">☰</button>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const DAYS = {
+  1: {
+    label: 'DAY 1',
+    title: '抵達京都 — 千本鳥居・祇園夜色',
+    meta: ['✈ 桃園 06:30 出發', '関空 10:10 抵達', '住：大津王子或同級'],
+    color: '#c0392b',
+    center: [34.98, 135.75],
+    zoom: 12,
+    stops: [
+      {
+        lat: 34.434, lng: 135.244,
+        name: '關西國際機場',
+        desc: '長榮 BR178，06:30 起飛，10:10 抵達',
+        badges: [{ text: '午：機上簡餐＋花壽司餐盒', cls: 'sbadge-meal' }],
+        icon: '✈'
+      },
+      {
+        lat: 34.9677, lng: 135.7792,
+        name: '伏見稻荷大社 — 千本鳥居',
+        desc: '西元711年創建，朱紅色鳥居神秘隧道直通稻荷山頂，京都最具代表性絕景',
+        badges: [{ text: '建議不爬山頂，中段最美', cls: 'sbadge-tip' }],
+        icon: '⛩'
+      },
+      {
+        lat: 35.0038, lng: 135.775,
+        name: '祇園 — 花見小路',
+        desc: '石板小徑兩旁茶屋料理店，偶然邂逅踩木屐的年輕舞妓',
+        badges: [{ text: '晚：相撲鍋吃到飽（¥3,500）', cls: 'sbadge-meal' }],
+        icon: '🌸'
+      },
+      {
+        lat: 35.0045, lng: 135.869,
+        name: '大津王子飯店（住宿）',
+        desc: '琵琶湖畔，京都市東南方',
+        badges: [{ text: '住宿', cls: 'sbadge-hotel' }],
+        icon: '🏨'
+      }
+    ]
+  },
+  2: {
+    label: 'DAY 2',
+    title: '清水寺・合掌秘境 → 丹後溫泉',
+    meta: ['飯店早餐', '住：天橋立區域溫泉飯店', '含泡湯'],
+    color: '#2980b9',
+    center: [35.2, 135.6],
+    zoom: 10,
+    stops: [
+      {
+        lat: 34.9947, lng: 135.7847,
+        name: '世界遺產 清水寺 — 二、三年坂',
+        desc: '建於798年，清水舞台139根大圓木支撐，未用一根釘子',
+        badges: [{ text: '早：飯店內早餐', cls: 'sbadge-meal' }],
+        icon: '🏯'
+      },
+      {
+        lat: 35.3104, lng: 135.6215,
+        name: '美山町 — 茅葺合掌屋秘境',
+        desc: '日本三大合掌村之一，被譽為「日本人心靈的故鄉」',
+        badges: [
+          { text: '午：美山御膳（¥2,500）', cls: 'sbadge-meal' },
+          { text: '自己去交通不便，跟團最輕鬆', cls: 'sbadge-tip' }
+        ],
+        icon: '🏠'
+      },
+      {
+        lat: 35.4747, lng: 135.3854,
+        name: '舞鶴紅磚公園',
+        desc: '舊日本海軍彈藥庫，8棟列為國家重要文化財，古典歐洲氛圍',
+        badges: [],
+        icon: '🧱'
+      },
+      {
+        lat: 35.5698, lng: 135.1918,
+        name: '天橋立區域溫泉飯店（住宿）',
+        desc: '京都宮津美居Spa / 京丹後中央 / 天橋立莊 / 佳松苑 或同級',
+        badges: [
+          { text: '住宿含泡湯', cls: 'sbadge-hotel' },
+          { text: '晚：飯店自助餐或會席料理', cls: 'sbadge-meal' }
+        ],
+        icon: '♨'
+      }
+    ]
+  },
+  3: {
+    label: 'DAY 3',
+    title: '米其林秘境・日本三景 → 大阪',
+    meta: ['飯店早餐', '住：大阪市區飯店', '今日移動量最大'],
+    color: '#27ae60',
+    center: [35.3, 135.35],
+    zoom: 9,
+    stops: [
+      {
+        lat: 35.6757, lng: 135.2875,
+        name: '★ 米其林 伊根灣舟屋 — 海上遊覽船',
+        desc: '230間舟屋圍繞靜謐伊根灣，搭船從海上欣賞江戶時代漁村聚落',
+        badges: [
+          { text: '早：飯店內早餐', cls: 'sbadge-meal' },
+          { text: '天候不佳退費¥600/人', cls: 'sbadge-warn' }
+        ],
+        icon: '⛵'
+      },
+      {
+        lat: 35.5856, lng: 135.2016,
+        name: '元伊勢籠神社',
+        desc: '2500年以上歷史，據說是伊勢神宮的本源',
+        badges: [],
+        icon: '⛩'
+      },
+      {
+        lat: 35.5698, lng: 135.1918,
+        name: '天橋立 — 傘松公園纜車',
+        desc: '日本三景之一！低頭從兩腳間望去，沙堤有如升天之龍',
+        badges: [{ text: '午：天橋立風味餐（¥2,500）', cls: 'sbadge-meal' }],
+        icon: '🌉'
+      },
+      {
+        lat: 34.6687, lng: 135.5013,
+        name: '道頓崛 — 心齋橋 — 戎橋商店街',
+        desc: '霓虹燈倒映運河，心齋橋商店街、御堂筋名牌大道',
+        badges: [{ text: '晚：自理', cls: 'sbadge-meal' }],
+        icon: '🏙'
+      },
+      {
+        lat: 34.693, lng: 135.499,
+        name: '大阪市區飯店（住宿）',
+        desc: 'Holiday Inn御堂筋 / 大阪本町都CITY / MOXY梅田 或同級',
+        badges: [{ text: '住宿', cls: 'sbadge-hotel' }],
+        icon: '🏨'
+      }
+    ]
+  },
+  4: {
+    label: 'DAY 4',
+    title: '大阪全日自由活動',
+    meta: ['飯店早餐', '今日不派車', '午晚餐自理'],
+    color: '#8e44ad',
+    center: [34.693, 135.502],
+    zoom: 13,
+    stops: [
+      {
+        lat: 34.665, lng: 135.432,
+        name: '環球影城 USJ（建議）',
+        desc: '超級任天堂世界、哈利波特、好萊塢電影主題樂園',
+        badges: [{ text: '自費景點', cls: 'sbadge-tip' }],
+        icon: '🎢'
+      },
+      {
+        lat: 34.6514, lng: 135.5063,
+        name: '天王寺・阿倍野HARUKAS（建議）',
+        desc: '日本最高摩天大樓，300公尺高展望台俯瞰大阪',
+        badges: [{ text: '自費景點', cls: 'sbadge-tip' }],
+        icon: '🗼'
+      },
+      {
+        lat: 34.7057, lng: 135.4903,
+        name: '梅田空中庭園（建議）',
+        desc: '梅田空中庭園展望台，眺望大阪夜景',
+        badges: [{ text: '自費景點', cls: 'sbadge-tip' }],
+        icon: '🌃'
+      },
+      {
+        lat: 34.6614, lng: 135.506,
+        name: '黑門市場（建議）',
+        desc: '大阪廚房，新鮮海鮮、和牛、各式熟食',
+        badges: [{ text: '自費餐食', cls: 'sbadge-meal' }],
+        icon: '🦀'
+      }
+    ]
+  },
+  5: {
+    label: 'DAY 5',
+    title: '返回溫暖的家',
+    meta: ['飯店早餐', '✈ 関空 11:10', '桃園 13:05 抵達'],
+    color: '#d35400',
+    center: [34.55, 135.35],
+    zoom: 10,
+    stops: [
+      {
+        lat: 34.693, lng: 135.499,
+        name: '大阪市區飯店 — 退房',
+        desc: '享用飯店早餐，整理行李，專車前往關西機場',
+        badges: [{ text: '早：飯店內早餐', cls: 'sbadge-meal' }],
+        icon: '🏨'
+      },
+      {
+        lat: 34.434, lng: 135.244,
+        name: '關西國際機場 → 桃園',
+        desc: '長榮 BR177，11:10 出發，13:05 抵達桃園，五日之旅圓滿結束！',
+        badges: [{ text: '午：機上簡餐', cls: 'sbadge-meal' }],
+        icon: '✈'
+      }
+    ]
+  }
+};
+
+// Init map
+const map = L.map('map', {
+  center: [34.98, 135.75],
+  zoom: 12,
+  zoomControl: true
+});
+
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '© OpenStreetMap contributors',
+  maxZoom: 19
+}).addTo(map);
+
+let currentMarkers = [];
+let currentPolyline = null;
+let currentDay = 1;
+
+function createMarkerIcon(num, color) {
+  return L.divIcon({
+    className: '',
+    html: `<div style="
+      width:34px;height:34px;border-radius:50%;
+      background:${color};
+      border:3px solid white;
+      box-shadow:0 2px 10px rgba(0,0,0,0.4);
+      display:flex;align-items:center;justify-content:center;
+      font-size:13px;font-weight:700;color:white;
+      font-family:'Noto Sans TC',sans-serif;
+    ">${num}</div>`,
+    iconSize: [34, 34],
+    iconAnchor: [17, 17],
+    popupAnchor: [0, -18]
+  });
+}
+
+function renderSidebar(dayNum) {
+  const day = DAYS[dayNum];
+  const header = document.getElementById('sidebar-header');
+  const list = document.getElementById('stops-list');
+
+  header.style.borderBottom = `2px solid ${day.color}40`;
+  header.innerHTML = `
+    <div class="sidebar-day-label" style="color:${day.color}">${day.label}</div>
+    <div class="sidebar-day-title">${day.title}</div>
+    <div class="sidebar-day-meta">
+      ${day.meta.map(m => `<span class="meta-pill">${m}</span>`).join('')}
+    </div>
+  `;
+
+  list.innerHTML = day.stops.map((stop, i) => `
+    <div class="stop-item" id="stop-${i}" onclick="focusStop(${i})">
+      <div class="stop-left">
+        <div class="stop-num" style="background:${day.color}">${i + 1}</div>
+        <div class="stop-connector"></div>
+      </div>
+      <div class="stop-content">
+        <div class="stop-name">${stop.icon} ${stop.name}</div>
+        <div class="stop-desc">${stop.desc}</div>
+        <div class="stop-badges">
+          ${stop.badges.map(b => `<span class="sbadge ${b.cls}">${b.text}</span>`).join('')}
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderMap(dayNum) {
+  const day = DAYS[dayNum];
+
+  // Clear previous
+  currentMarkers.forEach(m => map.removeLayer(m));
+  currentMarkers = [];
+  if (currentPolyline) { map.removeLayer(currentPolyline); currentPolyline = null; }
+
+  const latlngs = [];
+
+  day.stops.forEach((stop, i) => {
+    const marker = L.marker([stop.lat, stop.lng], {
+      icon: createMarkerIcon(i + 1, day.color)
+    }).addTo(map);
+
+    const badgeHtml = stop.badges.map(b =>
+      `<span class="popup-badge" style="background:rgba(201,151,58,0.2);color:#e8c87a;font-size:11px;padding:2px 8px;border-radius:3px;display:inline-block;margin-top:4px;">${b.text}</span>`
+    ).join('');
+
+    marker.bindPopup(`
+      <div style="min-width:200px;padding:4px 2px;">
+        <div style="font-size:10px;letter-spacing:0.15em;color:${day.color};margin-bottom:4px;font-weight:500;">${day.label} · ${i+1}/${day.stops.length}</div>
+        <div class="popup-name">${stop.icon} ${stop.name}</div>
+        <div class="popup-desc">${stop.desc}</div>
+        ${badgeHtml}
+      </div>
+    `, { maxWidth: 260 });
+
+    marker.on('click', () => {
+      highlightStop(i);
+    });
+
+    currentMarkers.push(marker);
+    latlngs.push([stop.lat, stop.lng]);
+  });
+
+  // Draw route line
+  if (latlngs.length > 1) {
+    currentPolyline = L.polyline(latlngs, {
+      color: day.color,
+      weight: 2.5,
+      opacity: 0.6,
+      dashArray: '6, 8'
+    }).addTo(map);
+  }
+
+  map.flyTo(day.center, day.zoom, { duration: 1.2 });
+}
+
+function focusStop(idx) {
+  const stop = DAYS[currentDay].stops[idx];
+  map.flyTo([stop.lat, stop.lng], 14, { duration: 0.8 });
+  currentMarkers[idx].openPopup();
+  highlightStop(idx);
+}
+
+function highlightStop(idx) {
+  document.querySelectorAll('.stop-item').forEach((el, i) => {
+    el.classList.toggle('active-stop', i === idx);
+  });
+  const el = document.getElementById(`stop-${idx}`);
+  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function switchDay(dayNum) {
+  currentDay = dayNum;
+  document.querySelectorAll('.tab-btn').forEach(b => {
+    b.classList.toggle('active', parseInt(b.dataset.day) === dayNum);
+  });
+  renderSidebar(dayNum);
+  renderMap(dayNum);
+}
+
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+}
+
+// Init
+switchDay(1);
+</script>
+</body>
+</html>
