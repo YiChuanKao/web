@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>🌸 東北五日 6/26出發</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+:root{
+  --ink:#1a1208; --paper:#f7f4ee; --cloud:#e6dfd2; --mist:#8a9aaa;
+  --deep:#0d1a10; --gold:#c8960c; --white:#ffffff;
+  --day1:#2e7d5a; --day2:#6b3fa0; --day3:#c0392b; --day4:#1a6e9a; --day5:#b7700a;
+  --meal-b:#2471a3; --meal-l:#e67e22; --meal-d:#8e44ad; --hotel:#34495e;
+  --r:12px; --r-sm:8px;
+  --shadow:0 2px 12px rgba(0,0,0,0.12);
+  --shadow-lg:0 4px 24px rgba(0,0,0,0.18);
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;font-family:'Noto Serif TC',serif;background:var(--deep);overflow:hidden;}
+
+/* ── APP LAYOUT ── */
+#app{display:flex;flex-direction:column;height:100vh;}
+
+/* ── HEADER ── */
+#header{
+  background:linear-gradient(135deg,#0d1a10,#162812);
+  border-bottom:1px solid rgba(200,150,12,.3);
+  padding:12px 16px 10px;
+  flex-shrink:0; z-index:200;
+}
+.hd-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+.hd-brand{font-family:'Space Mono',monospace;font-size:9px;letter-spacing:.2em;color:var(--gold);text-transform:uppercase;}
+.hd-title{font-size:15px;color:var(--white);font-weight:700;letter-spacing:.04em;}
+.hd-sub{font-family:'Space Mono',monospace;font-size:10px;color:rgba(255,255,255,.45);margin-top:2px;}
+.hd-flight{
+  background:rgba(200,150,12,.15);border:1px solid rgba(200,150,12,.35);
+  border-radius:6px;padding:5px 10px;font-size:10px;color:rgba(255,255,255,.8);
+  font-family:'Space Mono',monospace;white-space:nowrap;
+}
+
+/* Day pills scroll */
+.day-scroll{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none;}
+.day-scroll::-webkit-scrollbar{display:none;}
+.dp{
+  flex-shrink:0;padding:6px 14px;border-radius:20px;
+  font-size:12px;font-family:'Space Mono',monospace;
+  border:1.5px solid rgba(255,255,255,.2);color:rgba(255,255,255,.5);
+  cursor:pointer;background:transparent;transition:all .2s;
+  white-space:nowrap;letter-spacing:.03em;
+}
+.dp:hover{color:var(--white);border-color:rgba(255,255,255,.5);}
+.dp.active{color:var(--white);font-weight:700;border-color:transparent;}
+.dp[data-d="1"].active{background:var(--day1);}
+.dp[data-d="2"].active{background:var(--day2);}
+.dp[data-d="3"].active{background:var(--day3);}
+.dp[data-d="4"].active{background:var(--day4);}
+.dp[data-d="5"].active{background:var(--day5);}
+.dp[data-d="0"].active{background:#444;}
+
+/* ── MAIN CONTENT ── */
+#main{display:flex;flex:1;overflow:hidden;}
+
+/* ── MAP ── */
+#map-wrap{flex:1;position:relative;min-height:0;}
+#map{width:100%;height:100%;}
+
+/* MAP LABELS */
+.map-label{
+  background:white;border:2px solid currentColor;border-radius:6px;
+  padding:3px 8px 3px 5px;font-size:11px;font-weight:700;
+  white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.2);
+  display:flex;align-items:center;gap:4px;cursor:pointer;
+  line-height:1.3;
+}
+.map-label:hover{transform:scale(1.05);}
+.lbl-icon{font-size:12px;flex-shrink:0;}
+.lbl-tag{font-size:8px;padding:1px 4px;border-radius:3px;color:white;margin-left:2px;font-family:'Space Mono',monospace;}
+
+/* ── BOTTOM SHEET (mobile) ── */
+#sheet{
+  background:var(--paper);
+  border-radius:20px 20px 0 0;
+  box-shadow:0 -4px 24px rgba(0,0,0,.18);
+  flex-shrink:0;
+  max-height:50vh;
+  overflow-y:auto;
+  z-index:100;
+  scrollbar-width:thin;
+  scrollbar-color:var(--cloud) transparent;
+  transition:max-height .3s ease;
+}
+#sheet::-webkit-scrollbar{width:3px;}
+#sheet::-webkit-scrollbar-thumb{background:var(--cloud);}
+.sheet-handle{
+  display:flex;justify-content:center;padding:10px 0 4px;
+  position:sticky;top:0;background:var(--paper);z-index:10;
+  border-radius:20px 20px 0 0;
+}
+.handle-bar{width:36px;height:4px;background:var(--cloud);border-radius:2px;}
+
+/* ── DAY OVERVIEW CARD ── */
+.day-ov{padding:0 16px 6px;}
+.day-ov-head{display:flex;align-items:center;gap:10px;margin-bottom:12px;}
+.day-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+.day-ov-title{font-size:14px;font-weight:700;line-height:1.4;flex:1;}
+.day-ov-date{font-family:'Space Mono',monospace;font-size:10px;color:var(--mist);}
+
+/* MEAL CHIPS horizontal */
+.meal-chips{display:flex;gap:6px;margin-bottom:12px;overflow-x:auto;scrollbar-width:none;}
+.meal-chips::-webkit-scrollbar{display:none;}
+.meal-chip{
+  flex-shrink:0;border-radius:10px;padding:6px 12px;
+  display:flex;flex-direction:column;align-items:flex-start;gap:1px;
+  min-width:100px;border:1.5px solid transparent;
+}
+.meal-chip.b{background:#e8f4fd;border-color:#aed6f1;}
+.meal-chip.l{background:#fef5e7;border-color:#f8c471;}
+.meal-chip.d{background:#f4ecf7;border-color:#d7bde2;}
+.mc-label{font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;font-family:'Space Mono',monospace;}
+.meal-chip.b .mc-label{color:var(--meal-b);}
+.meal-chip.l .mc-label{color:var(--meal-l);}
+.meal-chip.d .mc-label{color:var(--meal-d);}
+.mc-text{font-size:12px;color:var(--ink);line-height:1.4;}
+.mc-where{font-size:10px;color:var(--mist);margin-top:1px;}
+
+/* TIMELINE */
+.timeline{position:relative;padding-left:20px;margin-bottom:4px;}
+.timeline::before{content:'';position:absolute;left:7px;top:0;bottom:0;width:2px;background:var(--cloud);}
+.tl-item{
+  position:relative;margin-bottom:2px;padding:10px 12px 10px 16px;
+  background:var(--white);border-radius:var(--r-sm);
+  border:1px solid var(--cloud);cursor:pointer;transition:all .15s;
+}
+.tl-item:hover{border-color:currentColor;box-shadow:var(--shadow);}
+.tl-item.active{border-color:currentColor;box-shadow:var(--shadow);}
+.tl-dot{
+  position:absolute;left:-20px;top:14px;width:14px;height:14px;
+  border-radius:50%;border:2.5px solid white;
+  box-shadow:0 0 0 2px currentColor;background:currentColor;
+  z-index:1;
+}
+.tl-badges{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:4px;}
+.badge{
+  display:inline-flex;align-items:center;gap:3px;
+  font-size:9px;padding:2px 7px;border-radius:10px;
+  color:white;font-family:'Space Mono',monospace;letter-spacing:.05em;font-weight:700;
+}
+.tl-name{font-size:14px;font-weight:700;color:var(--ink);line-height:1.3;margin-bottom:3px;}
+.tl-desc{font-size:11px;color:#6a5c48;line-height:1.6;}
+.lunch-note{
+  margin-top:6px;background:#fff8e1;border-left:3px solid var(--meal-l);
+  border-radius:0 6px 6px 0;padding:6px 10px;font-size:11px;color:#7a4f00;line-height:1.6;
+}
+.hotel-note{
+  margin-top:6px;background:#eaf0fb;border-left:3px solid var(--hotel);
+  border-radius:0 6px 6px 0;padding:6px 10px;font-size:11px;color:#1a2a4a;line-height:1.6;
+}
+
+/* Hotel row at bottom */
+.hotel-row{
+  margin:8px 16px 16px;background:var(--deep);color:var(--white);
+  border-radius:var(--r-sm);padding:12px 14px;
+  display:flex;align-items:flex-start;gap:10px;
+}
+.hotel-ic{font-size:18px;flex-shrink:0;}
+.hotel-body{}
+.hotel-label{font-family:'Space Mono',monospace;font-size:9px;letter-spacing:.15em;color:var(--gold);text-transform:uppercase;margin-bottom:3px;}
+.hotel-name{font-size:12px;line-height:1.6;}
+
+/* DESKTOP: side panel */
+@media(min-width:768px){
+  #main{flex-direction:row;}
+  #sheet{
+    width:380px;max-height:100%;flex-shrink:0;
+    border-radius:0;box-shadow:none;
+    border-left:1px solid var(--cloud);
+    order:2;
+  }
+  #map-wrap{order:1;}
+  .sheet-handle{display:none;}
+}
+
+/* Leaflet overrides */
+.leaflet-popup-tip{display:none!important;}
+.leaflet-popup-content-wrapper{
+  border-radius:10px!important;padding:0!important;
+  font-family:'Noto Serif TC',serif!important;
+  box-shadow:var(--shadow-lg)!important;border:none!important;
+}
+.leaflet-popup-content{margin:0!important;}
+</style>
+</head>
+<body>
+<div id="app">
+
+<!-- HEADER -->
+<div id="header">
+  <div class="hd-top">
+    <div>
+      <div class="hd-brand">🌸 台灣虎航包機 · 郡山進出</div>
+      <div class="hd-title">春暖花現日本東北五日</div>
+      <div class="hd-sub">2026/06/26（五）出發　NT$29,900起</div>
+    </div>
+    <div class="hd-flight">IT-752<br>10:30↑</div>
+  </div>
+  <div class="day-scroll">
+    <button class="dp active" data-d="1" onclick="selectDay(1)">Day1 6/26</button>
+    <button class="dp" data-d="2" onclick="selectDay(2)">Day2 6/27</button>
+    <button class="dp" data-d="3" onclick="selectDay(3)">Day3 6/28</button>
+    <button class="dp" data-d="4" onclick="selectDay(4)">Day4 6/29</button>
+    <button class="dp" data-d="5" onclick="selectDay(5)">Day5 6/30</button>
+    <button class="dp" data-d="0" onclick="selectDay(0)">全覽</button>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div id="main">
+  <div id="map-wrap"><div id="map"></div></div>
+
+  <!-- SHEET / SIDEBAR -->
+  <div id="sheet">
+    <div class="sheet-handle"><div class="handle-bar"></div></div>
+    <div id="sheet-content"></div>
+  </div>
+</div>
+
+</div><!-- #app -->
+
+<script>
+// ═══════════════════════════════════════════
+// DATA — 每個 spot 帶有 type: spot/breakfast/lunch/dinner/hotel
+// ═══════════════════════════════════════════
+const DAYS = {
+  1:{
+    color:'#2e7d5a', date:'6/26（五）',
+    title:'郡山入境 → 豬苗代湖',
+    flight:{out:'IT-752 桃園10:30→郡山14:30', back:null},
+    meals:{
+      早:{text:'機上套餐', where:'飛機上', lat:null, lng:null},
+      午:{text:'機上套餐', where:'飛機上', lat:null, lng:null},
+      晚:{text:'飯店自助餐或御膳料理', where:'豬苗代溫泉飯店', lat:37.5580, lng:140.1020}
+    },
+    hotel:{name:'豬苗代溫泉飯店 / VILLA飯店 / マウント磐梯 / 岳溫泉Mt.Inn / 土湯溫泉Yumori 或同級', lat:37.5580, lng:140.1020},
+    spots:[
+      {id:'kori_in', name:'郡山國際機場', lat:37.4032, lng:140.4155,
+       badge:'✈ 入境', type:'spot',
+       desc:'搭乘虎航IT-752，桃園10:30出發，郡山14:30抵達。入境後專車前往豬苗代湖。'},
+      {id:'inawashiro', name:'豬苗代湖（天鏡湖）', lat:37.4751, lng:140.1062,
+       badge:'🏞 日本第四大湖', type:'spot',
+       desc:'面積103.3平方公里，全日本第四大湖，又名「天鏡湖」。湖水清澈，磐梯山倒映湖面，四季皆有不同美景。春賞花、夏賞新綠、秋賞楓、冬賞冰。'},
+    ]
+  },
+  2:{
+    color:'#6b3fa0', date:'6/27（六）',
+    title:'只見線第一鐵橋 → 大內宿 → 會津鐵道 → 會津若松城',
+    meals:{
+      早:{text:'飯店內享用', where:'豬苗代溫泉飯店（起床後）', lat:37.5580, lng:140.1020},
+      午:{text:'自理', where:'大內宿老街各食堂', lat:37.1800, lng:139.8967},
+      晚:{text:'飯店自助餐或御膳料理', where:'豬苗代溫泉飯店', lat:37.5580, lng:140.1020}
+    },
+    hotel:{name:'豬苗代溫泉飯店 / VILLA飯店 / マウント磐梯 / 岳溫泉Mt.Inn / 土湯溫泉Yumori 或同級', lat:37.5580, lng:140.1020},
+    spots:[
+      {id:'tadami', name:'只見線第一鐵橋', lat:37.3453, lng:139.5378,
+       badge:'🚂 世界最浪漫鐵道', type:'spot',
+       desc:'只見線全長135.2公里，連結福島縣會津若松到新潟縣小出站，沿線為只見川沿岸村莊，被票選為紅葉鐵道路線第一名，也是電影《青春18×2》取景地。'},
+      {id:'ouchijuku', name:'大內宿（日本三大合掌村）', lat:37.1800, lng:139.8967,
+       badge:'🏡 茅葺屋集落', type:'spot',
+       desc:'與白川鄉合掌村及京都美山茅葺之里並稱「日本三大茅葺屋集落」。茅葺屋整齊排列在約300公尺街道上。',
+       lunchNote:'午餐自理｜推薦大內宿名物「高遠蕎麥麵」，用一根大蔥代替筷子食用是當地獨特吃法，各家茅葺屋食堂皆可享用。'},
+      {id:'aizu_rail', name:'會津鐵道體驗', lat:37.4045, lng:139.8882,
+       badge:'🚃 在地鐵道', type:'spot',
+       desc:'緩慢行走於會津若松與會津田島之間，在名勝景點提供暫停服務，沿途美景接連不斷，體驗濃濃鄉間風情。'},
+      {id:'tsuruga', name:'會津若松城（鶴城）', lat:37.4908, lng:139.9304,
+       badge:'🏯 日本百大名城', type:'spot',
+       desc:'日本百大名城，擁有全日本唯一美麗的紅瓦天守閣，亦入選日本櫻花百選。春有櫻花、秋有紅葉、冬有漫天白雪，四季皆美。（不上天守閣）'},
+    ]
+  },
+  3:{
+    color:'#c0392b', date:'6/28（日）',
+    title:'中野不動尊 → 東光酒藏 → 銀山溫泉街',
+    meals:{
+      早:{text:'飯店內享用', where:'豬苗代溫泉飯店（出發前）', lat:37.5580, lng:140.1020},
+      午:{text:'日式風味料理', where:'東光酒藏周邊餐廳', lat:37.9124, lng:139.9342},
+      晚:{text:'日式風味料理或飯店自助餐/御膳料理', where:'山形格蘭德飯店等', lat:38.2404, lng:140.3634}
+    },
+    hotel:{name:'山形格蘭德飯店 / 山形Route Inn / 天童溫泉黑田景觀飯店 / 作並溫泉La樂渡假飯店 或同級', lat:38.2404, lng:140.3634},
+    spots:[
+      {id:'nakano', name:'中野不動尊（日本三大不動尊）', lat:37.8678, lng:140.3522,
+       badge:'⛩ 三大不動尊', type:'spot',
+       desc:'日本三大不動明王之一，祀奉守護眼疾痊癒的眼守不動明王。涼爽瀑布、紅色大日堂、三十六童子洞穴、天井臉譜等皆為必看特色。'},
+      {id:'toko', name:'東光酒藏（SK-II廣告取景地）', lat:37.9124, lng:139.9342,
+       badge:'🍶 百年酒藏', type:'spot',
+       desc:'東北最大規模的酒造資料館，以傳統木造工法打造，主棟未用一根鋼釘。館內重現明治時代酒窖氛圍，曾是SK-II等國際廣告取景地。※未滿18歲請勿飲酒。',
+       lunchNote:'午餐｜東光酒藏周邊享用山形縣在地日式風味料理，可搭配試飲當地名酒（未滿18歲請勿飲酒）。'},
+      {id:'ginzan', name:'銀山溫泉街', lat:38.6190, lng:140.5980,
+       badge:'♨ 神隱少女取景地', type:'spot',
+       desc:'五百多年歷史的溫泉區，沿銀山川兩側的大正時代木造建築，被認為是《神隱少女》靈感來源，也是日劇《阿信》取景地。煤氣燈映照川流，宛如夢境。'},
+    ]
+  },
+  4:{
+    color:'#1a6e9a', date:'6/29（一）',
+    title:'免稅店 → 松島灣・五大堂 → 松島魚市場 → 仙台三井OUTLET',
+    meals:{
+      早:{text:'飯店內享用', where:'山形/仙台飯店', lat:38.2404, lng:140.3634},
+      午:{text:'自理', where:'松島魚市場（二樓用餐區）', lat:38.3690, lng:141.0630},
+      晚:{text:'自理', where:'仙台港三井OUTLET PARK', lat:38.2940, lng:141.0015}
+    },
+    hotel:{name:'仙台KOKO系列 / 仙台Route Inn / 仙台Comfort系列 / 宮城利府Route Inn 或同級', lat:38.2682, lng:140.8694},
+    spots:[
+      {id:'taxfree', name:'免稅店', lat:38.2682, lng:140.8721,
+       badge:'🛍 免稅購物', type:'spot',
+       desc:'精選優質商品均可享免稅服務，設有中文服務人員，自用或餽贈親友皆宜。'},
+      {id:'matsushima', name:'松島灣散策・五大堂', lat:38.3680, lng:141.0650,
+       badge:'⭐ 米其林三星・日本三景', type:'spot',
+       desc:'法國米其林三顆星旅遊勝地。松島灣內約260個奇岩怪石小島，千年堂宇透露歷史刻痕，五大堂每三十三年才向公眾開放一次。'},
+      {id:'fishmarket', name:'松島魚市場', lat:38.3690, lng:141.0630,
+       badge:'🦪 新鮮海產', type:'spot',
+       desc:'擁有七艘大型金槍魚漁船的漁業公司運營。一樓販售當日新鮮海產，二樓設有餐飲區。',
+       lunchNote:'午餐自理｜二樓餐飲區可品嚐松島特有美味牡蠣、金槍魚及各式東北特色海鮮料理，菜單種類豐富。'},
+      {id:'mitsui', name:'仙台港三井OUTLET PARK', lat:38.2940, lng:141.0015,
+       badge:'🛍 OUTLET', type:'spot',
+       desc:'120間店舖，積極推出各種精品店免稅服務。晚餐自理，園區內有多家東北美食餐廳，牛舌料理為仙台名物首選。'},
+    ]
+  },
+  5:{
+    color:'#b7700a', date:'6/30（二）',
+    title:'大崎八幡宮 → AEON → 郡山機場 → 桃園',
+    flight:{out:null, back:'IT-753 郡山16:00→桃園19:10'},
+    meals:{
+      早:{text:'飯店內享用', where:'仙台飯店', lat:38.2682, lng:140.8694},
+      午:{text:'自理', where:'AEON永旺購物中心美食街', lat:38.2505, lng:140.8832},
+      晚:{text:'機上套餐', where:'飛機上', lat:null, lng:null}
+    },
+    hotel:{name:'—— 返回台灣 ——', lat:null},
+    spots:[
+      {id:'osaki', name:'大崎八幡宮（仙台國寶神社）', lat:38.2659, lng:140.8519,
+       badge:'⛩ 國寶神社', type:'spot',
+       desc:'社殿以日本最古老的「權現構造法」構築，被指定為國寶。社殿前的長床是國家重要保護文物，石鳥居為宮城縣保護文物。'},
+      {id:'aeon', name:'AEON永旺購物中心', lat:38.2505, lng:140.8832,
+       badge:'🛒 最後採購', type:'spot',
+       desc:'複合式商場，食品、服飾、日用品、化妝品一次購足。是返程前最後採購伴手禮的好去處。',
+       lunchNote:'午餐自理｜AEON美食街選擇豐富，可輕鬆飽餐後繼續採購伴手禮再出發前往機場。'},
+      {id:'kori_out', name:'郡山國際機場（回程）', lat:37.4032, lng:140.4155,
+       badge:'✈ 回程', type:'spot',
+       desc:'搭乘虎航IT-753，郡山16:00出發，桃園19:10抵達。托運行李20公斤，隨身行李10公斤。五日旅程圓滿結束，返回台灣！'},
+    ]
+  }
+};
+
+// ═══════════════════════════════════════════
+// MAP SETUP
+// ═══════════════════════════════════════════
+const map = L.map('map',{center:[38.0,140.3],zoom:7,zoomControl:false});
+L.control.zoom({position:'bottomright'}).addTo(map);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+  attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+  maxZoom:19
+}).addTo(map);
+
+const allMarkers={}, allLines={};
+
+function makeLabelIcon(color, emoji, name, tag){
+  const tagHtml = tag ? `<span class="lbl-tag" style="background:${tag.c}">${tag.t}</span>` : '';
+  return L.divIcon({
+    className:'', iconSize:null, iconAnchor:[0,12], popupAnchor:[100,-10],
+    html:`<div class="map-label" style="border-color:${color};color:${color}">
+      <span class="lbl-icon">${emoji}</span>
+      <span style="color:#1a1208">${name}</span>${tagHtml}
+    </div>`
+  });
+}
+
+// Meal icon mapping
+const MEAL_ICONS = {
+  早:{ emoji:'🌅', color:' #2471a3', tag:{t:'早餐',c:'#2471a3'} },
+  午:{ emoji:'🍱', color:'#e67e22', tag:{t:'午餐',c:'#e67e22'} },
+  晚:{ emoji:'🌙', color:'#8e44ad', tag:{t:'晚餐',c:'#8e44ad'} },
+};
+const SPOT_EMOJI = {'✈ 入境':'✈','✈ 回程':'✈','🏞 日本第四大湖':'🏞','🚂 世界最浪漫鐵道':'🚂','🏡 茅葺屋集落':'🏡','🚃 在地鐵道':'🚃','🏯 日本百大名城':'🏯','⛩ 三大不動尊':'⛩','🍶 百年酒藏':'🍶','♨ 神隱少女取景地':'♨','🛍 免稅購物':'🛍','⭐ 米其林三星・日本三景':'⭐','🦪 新鮮海產':'🦪','🛍 OUTLET':'🛍','⛩ 國寶神社':'⛩','🛒 最後採購':'🛒'};
+
+function buildMarkers(day){
+  const data=DAYS[day];
+  const c=data.color;
+  const mks=[];
+
+  // Spot markers
+  data.spots.forEach((spot,i)=>{
+    const emoji=SPOT_EMOJI[spot.badge]||'📍';
+    const mk=L.marker([spot.lat,spot.lng],{
+      icon:makeLabelIcon(c, emoji, spot.name, null),
+      zIndexOffset:200
+    });
+    mk.on('click',()=>{ focusSpot(day,spot.id,false); });
+    mks.push({mk,id:spot.id,lat:spot.lat,lng:spot.lng});
+  });
+
+  // Meal markers (only when has lat/lng and not same as a spot)
+  Object.entries(data.meals).forEach(([mealKey,meal])=>{
+    if(!meal.lat||!meal.lng) return;
+    // Check if this lat/lng is already very close to a spot
+    const alreadyCovered = data.spots.some(s=>Math.abs(s.lat-meal.lat)<0.002 && Math.abs(s.lng-meal.lng)<0.002);
+    const info=MEAL_ICONS[mealKey];
+    const mk=L.marker([meal.lat,meal.lng],{
+      icon:makeLabelIcon(info.color, info.emoji, meal.where, info.tag),
+      zIndexOffset: alreadyCovered ? 50 : 300
+    });
+    mk.on('click',()=>{
+      showMealCard(day, mealKey, meal, info);
+    });
+    mks.push({mk,id:`meal_${mealKey}`,lat:meal.lat,lng:meal.lng});
+  });
+
+  // Hotel marker
+  if(data.hotel.lat){
+    // avoid duplicate if same as a meal marker
+    const mk=L.marker([data.hotel.lat,data.hotel.lng],{
+      icon:makeLabelIcon(DAYS[day].color,'🏨','住宿',{t:'住宿',c:'#34495e'}),
+      zIndexOffset:100
+    });
+    mk.on('click',()=>{ showHotelCard(day); });
+    mks.push({mk,id:'hotel',lat:data.hotel.lat,lng:data.hotel.lng});
+  }
+
+  return mks;
+}
+
+Object.keys(DAYS).forEach(d=>{
+  const day=+d;
+  allMarkers[day] = buildMarkers(day);
+  // polyline through spots only
+  const spots = DAYS[day].spots;
+  if(spots.length>1){
+    allLines[day]=L.polyline(spots.map(s=>[s.lat,s.lng]),{
+      color:DAYS[day].color, weight:3, opacity:.65, dashArray:'8 5'
+    });
+  }
+});
+
+// ═══════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════
+let currentDay=1;
+
+function selectDay(day){
+  currentDay=day;
+  document.querySelectorAll('.dp').forEach(p=>p.classList.toggle('active',+p.dataset.d===day));
+  updateMap(day);
+  renderSheet(day);
+}
+
+function updateMap(day){
+  Object.values(allMarkers).flat().forEach(({mk})=>{ if(map.hasLayer(mk)) map.removeLayer(mk); });
+  Object.values(allLines).forEach(pl=>{ if(map.hasLayer(pl)) map.removeLayer(pl); });
+
+  const toShow = day===0 ? Object.keys(DAYS).map(Number) : [day];
+  const coords=[];
+  toShow.forEach(d=>{
+    if(allLines[d]) allLines[d].addTo(map);
+    allMarkers[d].forEach(({mk,lat,lng})=>{ mk.addTo(map); coords.push([lat,lng]); });
+  });
+  if(coords.length===1) map.setView(coords[0],13);
+  else if(coords.length>1) map.fitBounds(L.latLngBounds(coords),{padding:[50,110]});
+}
+
+// ═══════════════════════════════════════════
+// SHEET RENDER
+// ═══════════════════════════════════════════
+function renderSheet(day){
+  const sc=document.getElementById('sheet-content');
+  if(day===0){
+    sc.innerHTML=Object.entries(DAYS).map(([d,data])=>buildDayBlock(+d,data)).join('');
+  } else {
+    sc.innerHTML=buildDayBlock(day,DAYS[day]);
+  }
+  document.getElementById('sheet').scrollTop=0;
+}
+
+function buildDayBlock(d,data){
+  const c=data.color;
+  // flights
+  let flightHtml='';
+  if(data.flight){
+    if(data.flight.out) flightHtml+=`<div style="background:rgba(200,150,12,.12);border-left:3px solid var(--gold);padding:6px 12px;margin:0 16px 6px;font-size:11px;border-radius:0 6px 6px 0;color:#5a3a00;"><b style="font-family:'Space Mono',monospace;font-size:9px;color:var(--gold)">✈ 去程</b><br>${data.flight.out}</div>`;
+    if(data.flight.back) flightHtml+=`<div style="background:rgba(200,150,12,.12);border-left:3px solid var(--gold);padding:6px 12px;margin:0 16px 6px;font-size:11px;border-radius:0 6px 6px 0;color:#5a3a00;"><b style="font-family:'Space Mono',monospace;font-size:9px;color:var(--gold)">✈ 回程</b><br>${data.flight.back}</div>`;
+  }
+
+  // meal chips
+  const mealChips = ['早','午','晚'].map(k=>{
+    const m=data.meals[k];
+    const cls={早:'b',午:'l',晚:'d'}[k];
+    const icon={早:'🌅',午:'🍱',晚:'🌙'}[k];
+    const where=m.where?`<div class="mc-where">📍 ${m.where}</div>`:'';
+    return `<div class="meal-chip ${cls}"><div class="mc-label">${icon} ${k}餐</div><div class="mc-text">${m.text}</div>${where}</div>`;
+  }).join('');
+
+  // timeline spots
+  const timeline = data.spots.map((s,i)=>{
+    const lunchHtml = s.lunchNote
+      ? `<div class="lunch-note">🍱 <b>午餐地點</b><br>${s.lunchNote}</div>` : '';
+    return `
+    <div class="tl-item" id="ti-${d}-${s.id}" style="color:${c}" onclick="focusSpot(${d},'${s.id}',true)">
+      <div class="tl-dot" style="background:${c};box-shadow:0 0 0 2px ${c}"></div>
+      <div class="tl-badges">
+        <span class="badge" style="background:${c}">${s.badge}</span>
+        ${s.lunchNote?`<span class="badge" style="background:var(--meal-l)">🍱 午餐</span>`:''}
+      </div>
+      <div class="tl-name">${s.name}</div>
+      <div class="tl-desc">${s.desc}</div>
+      ${lunchHtml}
+    </div>`;
+  }).join('');
+
+  // hotel
+  const hotelHtml = data.hotel.lat
+    ? `<div class="hotel-row">
+        <span class="hotel-ic">🏨</span>
+        <div class="hotel-body">
+          <div class="hotel-label">住宿</div>
+          <div class="hotel-name">${data.hotel.name}</div>
+        </div>
+      </div>` : `<div class="hotel-row"><span class="hotel-ic">✈</span><div class="hotel-body"><div class="hotel-label">住宿</div><div class="hotel-name">${data.hotel.name}</div></div></div>`;
+
+  return `
+<div class="day-ov" style="padding-top:12px">
+  <div class="day-ov-head">
+    <div class="day-dot" style="background:${c}"></div>
+    <div>
+      <div class="day-ov-title" style="color:${c}">Day ${d}　${data.date}</div>
+      <div style="font-size:13px;font-weight:700;color:var(--ink);line-height:1.4">${data.title}</div>
+    </div>
+  </div>
+  ${flightHtml}
+  <div class="meal-chips">${mealChips}</div>
+  <div class="timeline">${timeline}</div>
+</div>
+${hotelHtml}
+<div style="height:4px;background:var(--cloud);margin-bottom:0"></div>`;
+}
+
+// ═══════════════════════════════════════════
+// FOCUS / CARDS
+// ═══════════════════════════════════════════
+function focusSpot(day,id,panMap){
+  document.querySelectorAll('.tl-item').forEach(el=>el.classList.remove('active'));
+  const el=document.getElementById(`ti-${day}-${id}`);
+  if(el){
+    el.classList.add('active');
+    el.scrollIntoView({behavior:'smooth',block:'nearest'});
+  }
+  if(panMap){
+    const spot=DAYS[day].spots.find(s=>s.id===id);
+    if(spot) map.setView([spot.lat,spot.lng],14,{animate:true});
+  }
+}
+
+function showMealCard(day,key,meal,info){
+  // simple popup on map
+  L.popup({closeButton:true,maxWidth:240})
+    .setLatLng([meal.lat,meal.lng])
+    .setContent(`<div style="padding:10px 12px;font-family:'Noto Serif TC',serif">
+      <div style="font-size:9px;letter-spacing:.15em;color:${info.color};font-family:'Space Mono',monospace;text-transform:uppercase;margin-bottom:4px">${info.emoji} ${key}餐</div>
+      <div style="font-size:14px;font-weight:700;color:#1a1208;margin-bottom:4px">${meal.where}</div>
+      <div style="font-size:12px;color:#5a4a30">${meal.text}</div>
+    </div>`)
+    .openOn(map);
+}
+
+function showHotelCard(day){
+  const data=DAYS[day];
+  if(!data.hotel.lat) return;
+  L.popup({closeButton:true,maxWidth:260})
+    .setLatLng([data.hotel.lat,data.hotel.lng])
+    .setContent(`<div style="padding:10px 12px;font-family:'Noto Serif TC',serif">
+      <div style="font-size:9px;letter-spacing:.15em;color:#34495e;font-family:'Space Mono',monospace;text-transform:uppercase;margin-bottom:4px">🏨 住宿</div>
+      <div style="font-size:12px;color:#1a2a4a;line-height:1.6">${data.hotel.name}</div>
+    </div>`)
+    .openOn(map);
+}
+
+// Sheet expand/collapse on mobile (touch drag handle)
+let startY=0, startH=0;
+const sheet=document.getElementById('sheet');
+const handle=sheet.querySelector('.sheet-handle');
+handle.addEventListener('touchstart',e=>{startY=e.touches[0].clientY;startH=sheet.offsetHeight;},{passive:true});
+handle.addEventListener('touchmove',e=>{
+  const dy=startY-e.touches[0].clientY;
+  const newH=Math.max(120,Math.min(window.innerHeight*0.85,startH+dy));
+  sheet.style.maxHeight=newH+'px';
+},{passive:true});
+
+// ═══════════════════════════════════════════
+// BOOT
+// ═══════════════════════════════════════════
+renderSheet(1);
+updateMap(1);
+</script>
+</body>
+</html>
