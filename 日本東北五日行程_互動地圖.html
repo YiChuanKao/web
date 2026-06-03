@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>春暖花現日本東北五日｜6/26出發互動地圖</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@300;400;600;700&family=Shippori+Mincho:wght@400;500;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+:root {
+  --ink: #1a1208;
+  --paper: #f5f2ec;
+  --cloud: #e6e0d4;
+  --mist: #8a9aaa;
+  --deep: #0f1a14;
+  --gold: #c8960c;
+  --sakura: #e8a4b0;
+  --day1: #2e7d5a;
+  --day2: #6b3fa0;
+  --day3: #c0392b;
+  --day4: #1a6e9a;
+  --day5: #b7700a;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+html, body { height:100%; overflow:hidden; font-family:'Noto Serif TC',serif; }
+
+#app {
+  display:grid;
+  grid-template-rows: 70px 1fr;
+  grid-template-columns: 380px 1fr;
+  height:100vh;
+  background:var(--deep);
+}
+
+/* HEADER */
+header {
+  grid-column:1/-1;
+  background: linear-gradient(135deg, #0f1a14 0%, #1a2e1e 100%);
+  border-bottom:1px solid rgba(200,150,12,0.3);
+  display:flex; align-items:center; justify-content:space-between;
+  padding:0 24px; z-index:500; position:relative;
+}
+.hd-left { display:flex; align-items:center; gap:14px; }
+.hd-sakura { font-size:20px; }
+.hd-texts {}
+.hd-brand {
+  font-family:'Space Mono',monospace; font-size:9px;
+  letter-spacing:0.22em; color:var(--gold); text-transform:uppercase;
+  display:block; margin-bottom:2px;
+}
+.hd-title {
+  font-family:'Shippori Mincho',serif; font-size:17px;
+  color:var(--paper); font-weight:700; letter-spacing:0.05em;
+}
+.hd-date {
+  font-family:'Space Mono',monospace; font-size:10px;
+  color:rgba(245,242,236,0.55); margin-left:10px;
+}
+.day-pills { display:flex; gap:3px; }
+.dp {
+  padding:5px 13px; font-size:11px;
+  font-family:'Space Mono',monospace;
+  border:1px solid rgba(255,255,255,0.15);
+  color:rgba(245,242,236,0.5); cursor:pointer;
+  background:transparent; border-radius:2px;
+  letter-spacing:0.04em; transition:all 0.18s;
+}
+.dp:hover { color:var(--paper); border-color:rgba(255,255,255,0.4); }
+.dp.active { color:white; font-weight:700; border-color:transparent; }
+.dp[data-d="1"].active { background:var(--day1); }
+.dp[data-d="2"].active { background:var(--day2); }
+.dp[data-d="3"].active { background:var(--day3); }
+.dp[data-d="4"].active { background:var(--day4); }
+.dp[data-d="5"].active { background:var(--day5); }
+.dp[data-d="0"].active { background:#3a3a3a; }
+
+/* SIDEBAR */
+#sidebar {
+  background:var(--paper);
+  overflow-y:auto; border-right:1px solid var(--cloud);
+  scrollbar-width:thin; scrollbar-color:var(--cloud) transparent;
+}
+#sidebar::-webkit-scrollbar { width:4px; }
+#sidebar::-webkit-scrollbar-thumb { background:var(--cloud); }
+
+.day-hero {
+  padding:20px 22px 15px; position:sticky; top:0; z-index:10;
+  border-bottom:2px solid var(--ink);
+}
+.dh-label {
+  font-family:'Space Mono',monospace; font-size:9px;
+  letter-spacing:0.25em; text-transform:uppercase; margin-bottom:4px;
+}
+.dh-title {
+  font-family:'Shippori Mincho',serif; font-size:15px;
+  font-weight:700; line-height:1.4; color:var(--ink);
+}
+.dh-date-badge {
+  display:inline-block; margin-top:7px;
+  font-family:'Space Mono',monospace; font-size:10px;
+  padding:3px 10px; border-radius:2px; color:white; font-weight:700;
+}
+
+/* meals */
+.meal-row { display:flex; border-bottom:1px solid var(--cloud); }
+.mc { flex:1; padding:9px 7px; border-right:1px solid var(--cloud); text-align:center; }
+.mc:last-child { border-right:none; }
+.mc-lbl {
+  font-family:'Space Mono',monospace; font-size:8px;
+  letter-spacing:0.12em; color:var(--mist); text-transform:uppercase; margin-bottom:3px;
+}
+.mc-val { font-size:11px; line-height:1.4; color:var(--ink); }
+
+/* spots */
+.spot-list { padding:8px 0 18px; }
+.si {
+  display:flex; cursor:pointer; border-bottom:1px solid var(--cloud);
+  transition:background 0.12s; position:relative;
+}
+.si:hover { background:rgba(0,0,0,0.03); }
+.si.active { background:rgba(0,0,0,0.055); }
+.si.active::before {
+  content:''; position:absolute; left:0; top:0; bottom:0;
+  width:3px; border-radius:0 2px 2px 0;
+}
+.si-num {
+  width:42px; display:flex; align-items:flex-start;
+  justify-content:center; padding:13px 0 0; flex-shrink:0;
+}
+.num-circle {
+  width:24px; height:24px; border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  font-family:'Space Mono',monospace; font-size:9px;
+  font-weight:700; color:white; flex-shrink:0;
+}
+.si-body { padding:11px 15px 11px 0; flex:1; }
+.si-badge {
+  display:inline-block; font-family:'Space Mono',monospace;
+  font-size:8px; letter-spacing:0.07em; padding:2px 6px;
+  border-radius:2px; color:white; margin-bottom:5px; text-transform:uppercase;
+}
+.si-name {
+  font-family:'Shippori Mincho',serif; font-size:14px;
+  font-weight:700; margin-bottom:3px; line-height:1.3;
+}
+.si-desc { font-size:11px; color:#5a5040; line-height:1.65; }
+
+.hotel-bar {
+  display:flex; align-items:flex-start; gap:10px;
+  padding:10px 15px; background:var(--ink); color:var(--paper);
+  font-size:11px; line-height:1.6;
+}
+.hotel-ic {
+  font-family:'Space Mono',monospace; font-size:8px;
+  letter-spacing:0.15em; color:var(--gold); flex-shrink:0; padding-top:1px;
+}
+.note-box {
+  margin:8px 15px; border:1px solid var(--cloud);
+  border-left:3px solid var(--gold); padding:8px 12px;
+  font-size:11px; line-height:1.7; color:#5a4a30;
+}
+.note-lbl {
+  font-family:'Space Mono',monospace; font-size:8px;
+  letter-spacing:0.12em; color:var(--gold); text-transform:uppercase; margin-bottom:3px;
+}
+
+/* MAP */
+#map-wrap { position:relative; }
+#map { width:100%; height:100%; z-index:1; }
+
+/* INFO CARD */
+#info-card {
+  position:absolute; bottom:26px; right:26px; width:285px;
+  background:var(--paper); border:2px solid var(--ink);
+  box-shadow:7px 7px 0 rgba(0,0,0,0.2);
+  z-index:400; opacity:0; transform:translateY(14px);
+  transition:all 0.28s cubic-bezier(.22,.68,0,1.2); pointer-events:none;
+}
+#info-card.show { opacity:1; transform:translateY(0); pointer-events:all; }
+.ic-top { padding:12px 15px 10px; border-bottom:1px solid var(--cloud); }
+.ic-tag {
+  font-family:'Space Mono',monospace; font-size:9px;
+  letter-spacing:0.18em; text-transform:uppercase; margin-bottom:4px;
+}
+.ic-name { font-family:'Shippori Mincho',serif; font-size:16px; font-weight:700; line-height:1.3; }
+.ic-body { padding:10px 15px 14px; font-size:12px; line-height:1.8; color:#4a3c28; }
+.ic-close {
+  position:absolute; top:8px; right:8px; background:none; border:none;
+  cursor:pointer; font-size:14px; color:var(--mist); padding:3px 6px; line-height:1;
+}
+.ic-close:hover { color:var(--ink); }
+
+/* LEGEND */
+#legend {
+  position:absolute; top:16px; left:16px;
+  background:rgba(245,242,236,0.95); border:1px solid rgba(26,18,8,0.18);
+  padding:11px 14px; z-index:400; backdrop-filter:blur(6px);
+}
+.lg-ttl {
+  font-family:'Space Mono',monospace; font-size:8px;
+  letter-spacing:0.2em; color:var(--mist); text-transform:uppercase; margin-bottom:7px;
+}
+.lg-row {
+  display:flex; align-items:center; gap:7px; font-size:11px;
+  margin-bottom:4px; cursor:pointer; color:var(--ink);
+  transition:opacity 0.15s; padding:1px 0;
+}
+.lg-row:hover { opacity:0.65; }
+.lg-dot { width:11px; height:11px; border-radius:50%; flex-shrink:0; }
+
+/* FLIGHT BADGE */
+.flight-bar {
+  margin:8px 15px; background:var(--deep); color:var(--paper);
+  padding:9px 14px; font-size:11px; line-height:1.7;
+  border-left:3px solid var(--gold);
+}
+.flight-bar b { font-family:'Space Mono',monospace; color:var(--gold); font-size:10px; }
+
+@media(max-width:680px){
+  #app { grid-template-columns:1fr; grid-template-rows:60px 45vh 1fr; }
+  header { padding:0 14px; }
+  .hd-title { font-size:14px; }
+  #sidebar { grid-row:3; }
+  #map-wrap { grid-row:2; }
+  #info-card { display:none; }
+  .day-pills { gap:2px; }
+  .dp { padding:4px 8px; font-size:10px; }
+}
+
+/* popup override */
+.leaflet-popup-content-wrapper {
+  border-radius:2px !important; padding:0 !important;
+  font-family:'Noto Serif TC',serif !important;
+  border:2px solid var(--ink) !important;
+  box-shadow:5px 5px 0 rgba(0,0,0,0.18) !important;
+}
+.leaflet-popup-content { margin:0 !important; }
+.leaflet-popup-tip { display:none !important; }
+</style>
+</head>
+<body>
+<div id="app">
+
+<header>
+  <div class="hd-left">
+    <span class="hd-sakura">🌸</span>
+    <div class="hd-texts">
+      <span class="hd-brand">台灣虎航包機 · 郡山進出</span>
+      <span class="hd-title">春暖花現日本東北五日<span class="hd-date">2026/06/26 出發</span></span>
+    </div>
+  </div>
+  <div class="day-pills">
+    <button class="dp active" data-d="1" onclick="selectDay(1)">Day 1</button>
+    <button class="dp" data-d="2" onclick="selectDay(2)">Day 2</button>
+    <button class="dp" data-d="3" onclick="selectDay(3)">Day 3</button>
+    <button class="dp" data-d="4" onclick="selectDay(4)">Day 4</button>
+    <button class="dp" data-d="5" onclick="selectDay(5)">Day 5</button>
+    <button class="dp" data-d="0" onclick="selectDay(0)" style="margin-left:6px">全覽</button>
+  </div>
+</header>
+
+<div id="sidebar"></div>
+
+<div id="map-wrap">
+  <div id="map"></div>
+  <div id="legend">
+    <div class="lg-ttl">路線圖例</div>
+    <div class="lg-row" onclick="selectDay(1)"><div class="lg-dot" style="background:#2e7d5a"></div>Day 1 (6/26) 郡山→豬苗代湖</div>
+    <div class="lg-row" onclick="selectDay(2)"><div class="lg-dot" style="background:#6b3fa0"></div>Day 2 (6/27) 只見線→大內宿→會津若松城</div>
+    <div class="lg-row" onclick="selectDay(3)"><div class="lg-dot" style="background:#c0392b"></div>Day 3 (6/28) 中野不動尊→東光酒藏→銀山溫泉</div>
+    <div class="lg-row" onclick="selectDay(4)"><div class="lg-dot" style="background:#1a6e9a"></div>Day 4 (6/29) 松島灣→仙台三井OUTLET</div>
+    <div class="lg-row" onclick="selectDay(5)"><div class="lg-dot" style="background:#b7700a"></div>Day 5 (6/30) 大崎八幡宮→AEON→郡山機場</div>
+  </div>
+  <div id="info-card">
+    <button class="ic-close" onclick="closeCard()">✕</button>
+    <div class="ic-top">
+      <div class="ic-tag" id="ic-tag"></div>
+      <div class="ic-name" id="ic-name"></div>
+    </div>
+    <div class="ic-body" id="ic-body"></div>
+  </div>
+</div>
+
+</div>
+
+<script>
+const DAYS = {
+  1:{
+    color:'#2e7d5a',
+    bgColor:'#eef7f2',
+    date:'2026/06/26（五）',
+    title:'桃園出發 → 郡山機場入境 → 豬苗代湖',
+    meals:{ 早:'X（未含）', 午:'機上套餐', 晚:'飯店自助餐或御膳料理' },
+    hotel:'豬苗代溫泉飯店 / 豬苗代VILLA飯店 / 森の旅亭マウント磐梯 / 岳溫泉Mt.Inn飯店 / 土湯溫泉Yumori飯店 或同級',
+    flight:'虎航 IT-752　桃園 10:30 → 郡山 14:30',
+    spots:[
+      { id:'kori_in', name:'郡山國際機場（入境）', lat:37.4032, lng:140.4155,
+        badge:'✈ 入境', desc:'搭乘台灣虎航IT-752，桃園10:30出發，郡山14:30抵達。入境後專車前往豬苗代湖。' },
+      { id:'inawashiro', name:'豬苗代湖（天鏡湖）', lat:37.4751, lng:140.1062,
+        badge:'🏞 日本第四大湖', desc:'面積103.3平方公里，全日本第四大湖，又名「天鏡湖」。湖水清澈透明，磐梯山倒映湖面，四季皆有不同美景。春賞花、夏賞新綠、秋賞楓、冬賞冰。' },
+    ]
+  },
+  2:{
+    color:'#6b3fa0',
+    bgColor:'#f3eefc',
+    date:'2026/06/27（六）',
+    title:'只見線第一鐵橋 → 大內宿 → 會津鐵道 → 會津若松城',
+    meals:{ 早:'飯店內享用', 午:'自理', 晚:'飯店自助餐或御膳料理' },
+    hotel:'豬苗代溫泉飯店 / 豬苗代VILLA飯店 / 森の旅亭マウント磐梯 / 岳溫泉Mt.Inn / 土湯溫泉Yumori 或同級',
+    spots:[
+      { id:'tadami', name:'只見線第一鐵橋', lat:37.3453, lng:139.5378,
+        badge:'🚂 世界最浪漫鐵道', desc:'只見線全長135.2公里，連結福島縣會津若松到新潟縣小出站，沿線為只見川沿岸村莊，被日本經濟新聞票選為紅葉鐵道路線第一名，也是電影《青春18×2》取景地之一。' },
+      { id:'ouchijuku', name:'大內宿（日本三大合掌村）', lat:37.1800, lng:139.8967,
+        badge:'🏡 茅葺屋集落', desc:'建於17世紀江戶時代，與白川鄉合掌村及京都美山茅葺之里並稱「日本三大茅葺屋集落」。茅葺屋多規劃為商家或民宿，整齊排列在約300公尺的街道上，因交通不易抵達而保留世隔絕的面貌。' },
+      { id:'aizu_railway', name:'會津鐵道（田野鄉間體驗）', lat:37.4045, lng:139.8882,
+        badge:'🚃 在地鐵道', desc:'緩慢行走於會津若松與會津田島之間，在名勝景點提供暫停服務以供欣賞。沿途大內宿及塔崖等人氣景點，體驗濃濃鄉間風情。※湯野上溫泉櫻花季約每年4月中至4月下旬。' },
+      { id:'tsuruga', name:'會津若松城（鶴城）', lat:37.4908, lng:139.9304,
+        badge:'🏯 日本百大名城', desc:'又名「鶴城」，擁有日本國內唯一美麗的紅瓦天守閣，入選日本百大名城、日本櫻花百選。春天有櫻花、秋天有紅葉、冬天有漫天白雪，四季風景優美。（不上天守閣）' },
+    ]
+  },
+  3:{
+    color:'#c0392b',
+    bgColor:'#fdf0ef',
+    date:'2026/06/28（日）',
+    title:'中野不動尊 → 東光酒藏 → 銀山溫泉街散策',
+    meals:{ 早:'飯店內享用', 午:'日式風味料理', 晚:'日式風味料理或飯店自助式/御膳料理' },
+    hotel:'山形格蘭德飯店 / 山形Route Inn / 天童溫泉黑田景觀飯店 / 作並溫泉La樂渡假飯店 或同級',
+    spots:[
+      { id:'nakanofudo', name:'中野不動尊（日本三大不動尊）', lat:37.8678, lng:140.3522,
+        badge:'⛩ 三大不動尊', desc:'日本三大不動明王之一，祀奉守護眼疾痊癒的眼守不動明王、大日如來及三月不動明王。涼爽瀑布、紅色大日堂、三十六童子洞穴、天井臉譜等都是必看特色。' },
+      { id:'tokobrewery', name:'東光酒藏（SK-II廣告取景地）', lat:37.9124, lng:139.9342,
+        badge:'🍶 百年酒藏', desc:'東北規模最大的酒造資料館，以傳統木造工法打造、未用鋼釘的主棟具歷史價值。館內重現明治時代酒窖氛圍，並因其韻味的釀造倉景致，成為多部電影與SK-II等國際化妝品廣告取景地。※未滿18歲請勿飲酒。' },
+      { id:'ginzan', name:'銀山溫泉街（神隱少女・阿信取景地）', lat:38.6190, lng:140.5980,
+        badge:'♨ 夢幻溫泉街', desc:'五百多年歷史的溫泉區，沿銀山川兩側的木造建築滿溢大正時代古韻，被認為是宮崎駿《神隱少女》靈感來源，也是日劇《阿信》取景地。煤氣燈映照川流兩岸，冬季雪景尤為夢幻。' },
+    ]
+  },
+  4:{
+    color:'#1a6e9a',
+    bgColor:'#eef5fd',
+    date:'2026/06/29（一）',
+    title:'免稅店 → 松島灣散策・五大堂・松島魚市場 → 仙台三井OUTLET',
+    meals:{ 早:'飯店內享用', 午:'自理', 晚:'自理（逛街）' },
+    hotel:'仙台KOKO系列 / 仙台Route Inn / 仙台Comfort系列 / 仙台Green Hills / 宮城利府Route Inn 或同級',
+    note:'今日午、晚餐自理，仙台三井OUTLET有多家東北美食可選，推薦牛舌料理。',
+    spots:[
+      { id:'tax_free', name:'免稅店', lat:38.2682, lng:140.8721,
+        badge:'🛍 免稅購物', desc:'精選優質商品均可享免稅服務，設有中文服務人員，自用或餽贈親友皆宜。' },
+      { id:'matsushima', name:'松島灣散策・五大堂（米其林三星）', lat:38.3680, lng:141.0650,
+        badge:'⭐ 日本三景', desc:'法國米其林日本旅遊綠色指南推薦三顆星旅遊勝地。松島灣內約260個奇岩怪石小島，千年堂宇透露歷史刻痕，是日本重要文化財。五大堂每三十三年才向公眾開放一次。' },
+      { id:'fish_market', name:'松島魚市場', lat:38.3690, lng:141.0630,
+        badge:'🦪 新鮮海產', desc:'擁有七艘大型金槍魚漁船的漁業公司運營。一樓販售當日新鮮海產，二樓設有餐飲區可品嚐松島特有美味牡蠣，以及各式東北特色海鮮料理。' },
+      { id:'mitsui', name:'仙台港三井OUTLET PARK', lat:38.2940, lng:141.0015,
+        badge:'🛍 OUTLET', desc:'位於仙台市與松島之間，50公尺高摩天輪是地標。擁有120間店舖，積極推出各種精品店免稅服務，知名品牌退稅服務齊全，並有豐富東北美食如牛舌等。' },
+    ]
+  },
+  5:{
+    color:'#b7700a',
+    bgColor:'#fdf6ea',
+    date:'2026/06/30（二）',
+    title:'大崎八幡宮（仙台國寶神社）→ AEON購物中心 → 郡山機場 → 桃園',
+    meals:{ 早:'飯店內享用', 午:'自理', 晚:'機上套餐' },
+    hotel:'—— 返回台灣 ——',
+    flight:'虎航 IT-753　郡山 16:00 → 桃園 19:10',
+    spots:[
+      { id:'osaki', name:'大崎八幡宮（仙台國寶神社）', lat:38.2659, lng:140.8519,
+        badge:'⛩ 國寶神社', desc:'社殿以日本最古老的「權現構造法」構築，被指定為國寶。社殿前的長床是國家重要保護文物，石鳥居為宮城縣保護文物，所到之處都能感受到深厚歷史痕跡。' },
+      { id:'aeon', name:'AEON永旺購物中心', lat:38.2505, lng:140.8832,
+        badge:'🛒 購物', desc:'複合式商場，販售食品、服飾、生活日用品、化妝品、醫藥物品，並設有遊樂場等設施。可在此一次購足所有需求，是返程前最後採購的好去處。' },
+      { id:'kori_out', name:'郡山國際機場（回程）', lat:37.4032, lng:140.4155,
+        badge:'✈ 回程', desc:'搭乘台灣虎航IT-753，郡山16:00出發，桃園19:10抵達。托運行李20公斤、隨身行李10公斤。結束五日東北旅程，返回台灣。' },
+    ]
+  }
+};
+
+// MAP INIT
+const map = L.map('map',{ center:[38.0, 140.3], zoom:7, zoomControl:true });
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+  attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+  maxZoom:19,
+}).addTo(map);
+
+const markerLayers={}, lineLayers={};
+
+function makeIcon(color, num){
+  return L.divIcon({
+    className:'',
+    iconSize:[30,30], iconAnchor:[15,15], popupAnchor:[0,-18],
+    html:`<div style="width:30px;height:30px;border-radius:50%;background:${color};border:2.5px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.35);display:flex;align-items:center;justify-content:center;font-family:'Space Mono',monospace;font-size:11px;font-weight:700;color:white;cursor:pointer;">${num}</div>`
+  });
+}
+
+Object.entries(DAYS).forEach(([d,data])=>{
+  const day=+d;
+  markerLayers[day]=[];
+  data.spots.forEach((spot,i)=>{
+    const mk=L.marker([spot.lat,spot.lng],{icon:makeIcon(data.color,i+1)});
+    mk.on('click',()=>{ focusSpot(day,spot.id,false); showCard(day,spot); });
+    markerLayers[day].push(mk);
+  });
+  if(data.spots.length>1){
+    const pl=L.polyline(data.spots.map(s=>[s.lat,s.lng]),{
+      color:data.color, weight:3, opacity:0.72, dashArray:'8 5'
+    });
+    lineLayers[day]=pl;
+  }
+});
+
+let currentDay=1;
+
+function selectDay(day){
+  currentDay=day;
+  document.querySelectorAll('.dp').forEach(p=>p.classList.toggle('active',+p.dataset.d===day));
+  renderSidebar(day);
+  updateMap(day);
+  closeCard();
+}
+
+function updateMap(day){
+  Object.values(markerLayers).forEach(mks=>mks.forEach(mk=>{ if(map.hasLayer(mk)) map.removeLayer(mk); }));
+  Object.values(lineLayers).forEach(pl=>{ if(map.hasLayer(pl)) map.removeLayer(pl); });
+  const toShow=day===0?Object.keys(DAYS).map(Number):[day];
+  const allCoords=[];
+  toShow.forEach(d=>{
+    if(lineLayers[d]) lineLayers[d].addTo(map);
+    markerLayers[d].forEach(mk=>{ mk.addTo(map); const ll=mk.getLatLng(); allCoords.push([ll.lat,ll.lng]); });
+  });
+  if(allCoords.length===1){ map.setView(allCoords[0],12); }
+  else if(allCoords.length>1){ map.fitBounds(L.latLngBounds(allCoords),{padding:[55,55]}); }
+}
+
+function renderSidebar(day){
+  const sb=document.getElementById('sidebar');
+  sb.innerHTML = day===0
+    ? Object.entries(DAYS).map(([d,data])=>buildBlock(+d,data)).join('')
+    : buildBlock(day,DAYS[day]);
+  sb.scrollTop=0;
+}
+
+function buildBlock(d,data){
+  const c=data.color;
+  return `
+<div class="day-hero" style="background:${data.bgColor}">
+  <div class="dh-label" style="color:${c}">Day ${d}</div>
+  <div class="dh-title">${data.title}</div>
+  <span class="dh-date-badge" style="background:${c}">${data.date}</span>
+</div>
+${data.flight?`<div class="flight-bar"><b>✈ 航班</b><br>${data.flight}</div>`:''}
+<div class="meal-row">
+  ${['早','午','晚'].map(k=>`<div class="mc"><div class="mc-lbl">${k}餐</div><div class="mc-val">${data.meals[k]}</div></div>`).join('')}
+</div>
+${data.note?`<div class="note-box"><div class="note-lbl">📌 注意</div>${data.note}</div>`:''}
+<div class="spot-list">
+  ${data.spots.map((s,i)=>`
+  <div class="si" id="si-${d}-${s.id}" onclick="focusSpot(${d},'${s.id}',true)">
+    <div class="si-num"><div class="num-circle" style="background:${c}">${i+1}</div></div>
+    <div class="si-body">
+      <div class="si-badge" style="background:${c}">${s.badge}</div>
+      <div class="si-name">${s.name}</div>
+      <div class="si-desc">${s.desc}</div>
+    </div>
+  </div>`).join('')}
+</div>
+<div class="hotel-bar">
+  <span class="hotel-ic">🏨 STAY</span>
+  <span>${data.hotel}</span>
+</div>
+<div style="height:6px"></div>`;
+}
+
+function focusSpot(day,id,panMap){
+  document.querySelectorAll('.si').forEach(el=>el.classList.remove('active'));
+  const el=document.getElementById(`si-${day}-${id}`);
+  if(el){ el.classList.add('active'); el.scrollIntoView({behavior:'smooth',block:'nearest'}); }
+  if(panMap){
+    const spot=DAYS[day].spots.find(s=>s.id===id);
+    if(spot){ map.setView([spot.lat,spot.lng],13,{animate:true}); showCard(day,spot); }
+  }
+}
+
+function showCard(day,spot){
+  const data=DAYS[day];
+  document.getElementById('ic-tag').textContent=`Day ${day}・${data.date}　${spot.badge}`;
+  document.getElementById('ic-tag').style.color=data.color;
+  document.getElementById('ic-name').textContent=spot.name;
+  document.getElementById('ic-body').textContent=spot.desc;
+  document.getElementById('info-card').classList.add('show');
+}
+function closeCard(){
+  document.getElementById('info-card').classList.remove('show');
+  document.querySelectorAll('.si').forEach(el=>el.classList.remove('active'));
+}
+
+// BOOT
+renderSidebar(1);
+updateMap(1);
+</script>
+</body>
+</html>
