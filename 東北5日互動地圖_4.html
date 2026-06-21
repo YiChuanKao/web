@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5" />
+<title>春暖花現 日本東北 5 日 · 互動行程地圖</title>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@500;700;900&family=Noto+Sans+TC:wght@400;500;700&family=Shippori+Mincho:wght@600;800&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --washi:#F3ECDE;        /* 和紙底色 */
+    --washi-2:#E9DFC9;
+    --ink:#2B2A28;          /* 墨色 */
+    --ink-soft:#6E675C;
+    --line:#D8CDB4;
+    --d1:#D24E73;  /* 櫻 */
+    --d2:#3F8C77;  /* 新綠／溫泉 */
+    --d3:#C7892F;  /* 酒藏／琥珀 */
+    --d4:#3C6FA0;  /* 松島灣 */
+    --d5:#8568A8;  /* 不動尊／社 */
+    --shadow:0 6px 24px rgba(43,42,40,.18);
+    --r:14px;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0}
+  body{
+    font-family:"Noto Sans TC",system-ui,sans-serif;
+    color:var(--ink);
+    background:var(--washi);
+    overflow:hidden;
+  }
+  #map{position:absolute;inset:0;z-index:0;background:var(--washi)}
+
+  /* ---- 行程面板 ---- */
+  #panel{
+    position:absolute;z-index:1000;top:18px;left:18px;width:312px;max-width:calc(100vw - 36px);
+    background:
+      linear-gradient(180deg,rgba(255,255,255,.55),rgba(255,255,255,.2)),
+      var(--washi);
+    border:1px solid var(--line);
+    border-radius:var(--r);
+    box-shadow:var(--shadow);
+    overflow:hidden;
+  }
+  .head{
+    padding:18px 18px 14px;
+    border-bottom:1px solid var(--line);
+    position:relative;
+  }
+  .eyebrow{
+    font-family:"Shippori Mincho",serif;font-weight:600;letter-spacing:.28em;
+    font-size:11px;color:var(--d1);text-transform:uppercase;margin:0 0 6px;
+  }
+  .title{
+    font-family:"Noto Serif TC",serif;font-weight:900;line-height:1.22;
+    font-size:21px;margin:0;letter-spacing:.01em;
+  }
+  .sub{margin:8px 0 0;font-size:12px;color:var(--ink-soft);line-height:1.5}
+  .petal{position:absolute;top:14px;right:14px;font-size:18px;opacity:.5}
+
+  .rail{padding:8px 10px 12px;max-height:46vh;overflow:auto;overscroll-behavior:contain}
+  .day{
+    width:100%;display:flex;align-items:center;gap:12px;cursor:pointer;
+    border:1px solid transparent;border-radius:11px;background:transparent;
+    padding:9px 10px;text-align:left;color:inherit;font:inherit;transition:background .15s,border-color .15s;
+  }
+  .day:hover{background:rgba(255,255,255,.6)}
+  .day:focus-visible{outline:2px solid var(--ink);outline-offset:1px}
+  .day.off{opacity:.4}
+  .num{
+    flex:0 0 auto;width:34px;height:34px;border-radius:9px;display:grid;place-items:center;
+    font-family:"Shippori Mincho",serif;font-weight:800;font-size:17px;color:#fff;
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,.35);
+  }
+  .day .meta{min-width:0}
+  .day .dname{font-weight:700;font-size:13.5px;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .day .dnote{font-size:11.5px;color:var(--ink-soft);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .day .dot{flex:0 0 auto;width:8px;height:8px;border-radius:50%;margin-left:auto}
+
+  .foot{display:flex;gap:8px;padding:10px 14px 14px;border-top:1px solid var(--line)}
+  .btn{
+    flex:1;border:1px solid var(--line);background:rgba(255,255,255,.5);border-radius:10px;
+    padding:9px 8px;font:inherit;font-size:12.5px;font-weight:700;color:var(--ink);cursor:pointer;transition:background .15s;
+  }
+  .btn:hover{background:#fff}
+  .btn:focus-visible{outline:2px solid var(--ink);outline-offset:1px}
+
+  /* ---- 地圖標記 ---- */
+  .mk{display:grid;place-items:center;border-radius:50%;color:#fff;font-weight:700;
+    font-family:"Shippori Mincho",serif;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.35);font-size:13px}
+  .mk.stay{border-radius:9px;font-family:"Noto Sans TC";font-size:12px;font-weight:700}
+  .mk.air{border-radius:9px;font-size:14px}
+
+  /* ---- Popup ---- */
+  .leaflet-popup-content-wrapper{border-radius:12px;box-shadow:var(--shadow);border:1px solid var(--line)}
+  .leaflet-popup-content{margin:13px 15px;width:236px !important;font-family:"Noto Sans TC",sans-serif}
+  .pop-tag{display:inline-block;font-size:10.5px;font-weight:700;letter-spacing:.08em;color:#fff;
+    padding:2px 8px;border-radius:999px;margin-bottom:7px}
+  .pop-name{font-family:"Noto Serif TC",serif;font-weight:900;font-size:16px;line-height:1.25;margin:0 0 6px}
+  .pop-meta{font-size:11.5px;color:var(--ink-soft);margin:0 0 7px;display:flex;flex-wrap:wrap;gap:4px 10px}
+  .pop-meta b{color:var(--ink);font-weight:700}
+  .pop-note{font-size:12px;line-height:1.55;color:var(--ink);margin:0 0 11px}
+  .pop-link{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;text-decoration:none;
+    color:#fff;padding:7px 11px;border-radius:9px}
+  .pop-link:hover{filter:brightness(.94)}
+  .pop-meal{background:rgba(0,0,0,.04);border:1px solid var(--line);border-radius:9px;padding:8px 10px;margin:0 0 11px}
+  .pop-meal-h{display:block;font-weight:700;font-size:11.5px;color:var(--ink);margin-bottom:4px}
+  .pop-lunch{font-size:12px;line-height:1.5;color:var(--ink);margin:0 0 10px;padding:7px 10px;
+    background:rgba(0,0,0,.04);border:1px dashed var(--line);border-radius:9px}
+  .pop-meal-row{display:block;font-size:11.5px;color:var(--ink-soft);line-height:1.5;margin-bottom:4px}
+  .pop-meal-row:last-child{margin-bottom:0}
+  .pop-meal-row i{display:block;color:var(--ink);font-style:normal;font-weight:700;font-size:11px;margin-bottom:1px}
+
+  .leaflet-bar a,.leaflet-control-attribution{font-family:"Noto Sans TC",sans-serif}
+
+  /* ---- RWD ---- */
+  @media (max-width:640px){
+    #panel{top:auto;bottom:0;left:0;right:0;width:auto;max-width:none;border-radius:16px 16px 0 0;border-bottom:none}
+    .rail{max-height:32vh;display:grid;grid-template-columns:1fr 1fr;gap:4px}
+    .head{padding:14px 16px 11px}
+    .title{font-size:18px}
+    .sub{display:none}
+  }
+  @media (prefers-reduced-motion:reduce){*{scroll-behavior:auto !important}}
+</style>
+</head>
+<body>
+<div id="map"></div>
+
+<div id="panel">
+  <div class="head">
+    <span class="petal">🌸</span>
+    <p class="eyebrow">Tohoku · 5 Days</p>
+    <h1 class="title">春暖花現 日本東北<br>銀山・會津鐵道雙溫泉</h1>
+    <p class="sub">點左側日程可單獨檢視；點地圖標記看景點詳情與導航連結。</p>
+  </div>
+  <div class="rail" id="rail"></div>
+  <div class="foot">
+    <button class="btn" id="allBtn">顯示全部</button>
+    <button class="btn" id="fitBtn">回到全圖</button>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+const COLORS = {1:"#D24E73",2:"#3F8C77",3:"#C7892F",4:"#3C6FA0",5:"#8568A8"};
+
+// 各日標題與主題
+const DAYS = {
+  1:{label:"抵達福島 · 豬苗代湖", spots:"豬苗代湖 · 天鏡湖"},
+  2:{label:"會津地區巡遊", spots:"只見線 · 大內宿 · 會津若松城"},
+  3:{label:"跨入山形 · 銀山溫泉", spots:"中野不動尊 · 東光酒藏 · 銀山溫泉"},
+  4:{label:"松島灣 · 仙台", spots:"五大堂 · 松島魚市場 · 三井 OUTLET"},
+  5:{label:"大崎八幡宮 · 返台", spots:"大崎八幡宮 · 福島機場"}
+};
+
+// 每日餐食安排（依行程表）
+const MEALS = {
+  1:{b:"—（去程）",        l:"機上套餐",   d:"飯店內自助餐或御膳料理"},
+  2:{b:"飯店內享用",        l:"敬請自理",   d:"飯店內自助餐或御膳料理"},
+  3:{b:"飯店內享用",        l:"日式風味料理", d:"日式風味料理，或飯店內自助餐／御膳料理"},
+  4:{b:"飯店內享用",        l:"敬請自理（可於松島魚市場用餐）", d:"敬請自理（仙台港 OUTLET 美食街）"},
+  5:{b:"飯店內享用",        l:"敬請自理（AEON 購物中心）",       d:"機上套餐"}
+};
+
+// 地點資料（依當日順序；kind: spot/stay/air）
+const PLACES = [
+  // Day 1
+  {d:1,n:1,kind:"air",lunch:"機上套餐（去程航班上）",name:"福島機場（郡山）",lat:37.2285021,lng:140.4283852,type:"國際機場",rating:3.8,hours:"—",
+   note:"IT-752 班機 14:30 抵達，東北行程起點。",gid:"10030593729205130641"},
+  {d:1,n:2,kind:"spot",name:"豬苗代湖",lat:37.4968398,lng:140.0620321,type:"日本第四大湖",rating:4.3,hours:"全日",
+   note:"水質清澈，磐梯山倒映湖面如鏡，故稱「天鏡湖」。",gid:"4899311283552821656"},
+  {d:1,n:0,kind:"stay",mealAnchor:true,name:"森之旅亭 Mount 磐梯",lat:37.6574558,lng:140.2580482,type:"溫泉旅館（住宿）",rating:4.1,hours:"—",
+   note:"第 1 晚住宿。源泉直引的天然溫泉，晚餐為旅館自助餐或御膳料理。",gid:"2305281575418276180"},
+  // Day 2
+  {d:2,n:1,kind:"spot",name:"只見線第一鐵橋（道之驛 三島宿）",lat:37.477687,lng:139.6705027,type:"鐵道觀景台",rating:3.8,hours:"08:00–18:00",
+   note:"由道之驛步行約 5–10 分上觀景台。班次較少，無法保證拍到列車通過。",gid:"10252826772852122981"},
+  {d:2,n:2,kind:"spot",lunch:"敬請自理 — 大內宿周邊（名物蔥蕎麥）",name:"大內宿",lat:37.3341964,lng:139.8606982,type:"茅葺聚落",rating:4.2,hours:"08:30–17:00",
+   note:"江戶時代宿場町，日本三大茅葺聚落之一，街道兩側盡是茅草屋。",gid:"7073276916600730160"},
+  {d:2,n:3,kind:"spot",name:"會津鐵道（湯野上溫泉站）",lat:37.303648,lng:139.895419,type:"地方鐵道",rating:4.4,hours:"—",
+   note:"日本少見的茅草屋頂車站；實際搭乘起訖站依當日導遊安排為準。",gid:"12408474362149461575"},
+  {d:2,n:4,kind:"spot",name:"會津若松城（鶴城）",lat:37.4878198,lng:139.9296657,type:"日本百大名城",rating:4.3,hours:"08:30–17:00",
+   note:"全國唯一紅瓦天守閣，櫻花百選名所（行程不上天守閣）。",gid:"7457046999297240715"},
+  {d:2,n:0,kind:"stay",mealAnchor:true,name:"Inawashiro Kanko Hotel",lat:37.5731322,lng:140.0901895,type:"飯店（住宿）",rating:3.4,hours:"—",
+   note:"第 2 晚住宿。晚餐為旅館自助餐或御膳料理。",gid:"2069989016118652568"},
+  // Day 3
+  {d:3,n:1,kind:"spot",name:"中野不動尊（大聖寺）",lat:37.8247688,lng:140.4153076,type:"日本三大不動明王",rating:4.3,hours:"08:30–17:30",
+   note:"守護眼疾痊癒的眼守不動明王，瀑布襯著紅色大日堂，山林清幽。",gid:"7431451056607884999"},
+  {d:3,n:2,kind:"spot",lunch:"日式風味料理（地點依當日安排）",name:"東光酒藏",lat:37.9056289,lng:140.1123119,type:"酒造資料館",rating:4.2,hours:"09:00–16:30",
+   note:"東北最大規模酒造資料館，SK-II 廣告取景地。未滿 18 歲請勿飲酒。",gid:"13034886941659926179"},
+  {d:3,n:3,kind:"spot",name:"銀山溫泉街",lat:38.5706177,lng:140.5305457,type:"溫泉街",rating:null,hours:"—",
+   note:"五百多年歷史溫泉區，大正時代木造旅館林立，《神隱少女》與《阿信》取景地。",gid:"15674312831414572833"},
+  {d:3,n:0,kind:"stay",mealAnchor:true,name:"山形七日町華盛頓飯店",lat:38.2536448,lng:140.3389472,type:"飯店（住宿）",rating:3.4,hours:"—",
+   note:"第 3 晚住宿。位於山形市中心，周邊餐廳林立。",gid:"5818422985613690398"},
+  // Day 4
+  {d:4,n:1,kind:"spot",name:"松島五大堂",lat:38.3697185,lng:141.0642069,type:"日本三景 · 文化財",rating:4.2,hours:"08:30–16:30",
+   note:"伊達政宗 1609 年重建，朱紅橋連接小島，松島灣最具代表性地標。",gid:"3030318057448135500"},
+  {d:4,n:2,kind:"spot",dining:true,lunch:"敬請自理 — 松島魚市場（海鮮丼、烤牡蠣）",name:"松島魚市場",lat:38.3719493,lng:141.0651699,type:"海鮮市場 · 用餐點",rating:3.7,hours:"09:00–16:00",
+   note:"陳列當日新鮮漁獲，二樓用餐區可品嚐松島特有的牡蠣與海鮮丼。",gid:"668050928688449145"},
+  {d:4,n:3,kind:"spot",dining:true,name:"仙台港三井 OUTLET PARK",lat:38.2751825,lng:140.9898398,type:"購物中心 · 美食街",rating:3.8,hours:"10:00–20:00",
+   note:"約 120 間店舖，50 公尺摩天輪為地標；二樓美食街吃得到牛舌等東北美食。",gid:"11033941531212132849"},
+  {d:4,n:0,kind:"stay",mealAnchor:true,name:"KOKO HOTEL 仙台站前 West",lat:38.2590216,lng:140.8778715,type:"飯店（住宿）",rating:4.1,hours:"—",
+   note:"第 4 晚住宿。鄰近仙台車站，步行可達魚市場與餐廳街。",gid:"17365620811381904899"},
+  // Day 5
+  {d:5,n:1,kind:"spot",name:"大崎八幡宮",lat:38.2725199,lng:140.8450332,type:"國寶神社",rating:4.3,hours:"09:00–17:00",
+   note:"社殿以日本現存最古老的權現造工法構築，被指定為國寶。",gid:"5653800970240925595"},
+  {d:5,n:2,kind:"air",mealAnchor:true,lunch:"敬請自理 — AEON 購物中心",name:"福島機場（郡山）",lat:37.2285021,lng:140.4283852,type:"國際機場",rating:3.8,hours:"—",
+   note:"IT-753 班機 16:00 起飛，19:10 抵達桃園。返程前另安排 AEON 購物中心採買。",gid:"10030593729205130641"}
+];
+
+// 地圖
+const map = L.map('map',{zoomControl:true,scrollWheelZoom:true}).setView([38.0,140.4],8);
+L.control.scale({imperial:false}).addTo(map);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{
+  attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> 貢獻者 · © <a href="https://carto.com/attributions">CARTO</a>',
+  subdomains:'abcd',maxZoom:19
+}).addTo(map);
+
+// 依日分組
+const byDay={1:[],2:[],3:[],4:[],5:[]};
+PLACES.forEach(p=>byDay[p.d].push(p));
+
+const layers={};        // d -> L.layerGroup
+const visible={1:true,2:true,3:true,4:true,5:true};
+const allMarkerBounds=[];
+
+function markerIcon(p){
+  const c=COLORS[p.d];
+  let cls="mk",label=p.n,size=30;
+  if(p.kind==="stay"){cls="mk stay";label="宿";size=30;}
+  else if(p.kind==="air"){cls="mk air";label="✈";size=30;}
+  const html=`<div class="${cls}" style="width:${size}px;height:${size}px;background:${c}">${label}</div>`;
+  return L.divIcon({className:"",html,iconSize:[size,size],iconAnchor:[size/2,size/2],popupAnchor:[0,-size/2]});
+}
+
+function mealBlock(p){
+  const d=p.d;
+  const isHotel=p.kind==="stay";
+  const next=MEALS[d+1];   // 隔天早餐（在這家飯店享用）
+  let rows=`<span class="pop-meal-row"><i>第 ${d} 天晚餐</i>${MEALS[d].d}</span>`;
+  if(isHotel && next){
+    rows+=`<span class="pop-meal-row"><i>第 ${d+1} 天早餐</i>${next.b}</span>`;
+  }
+  const head=isHotel?"🍽 飯店供餐":"🍽 餐食";
+  return `<div class="pop-meal"><span class="pop-meal-h">${head}</span>${rows}</div>`;
+}
+
+function popupHtml(p){
+  const c=COLORS[p.d];
+  const meta=[];
+  if(p.rating) meta.push(`<span>★ <b>${p.rating}</b></span>`);
+  if(p.hours && p.hours!=="—") meta.push(`<span>🕘 ${p.hours}</span>`);
+  const gmapCid=p.gid?`https://maps.google.com/?cid=${p.gid}`:`https://www.google.com/maps/search/?api=1&query=${p.lat},${p.lng}`;
+  const tag = p.dining ? `Day ${p.d} · 🍴 ${p.type}` : `Day ${p.d} · ${p.type}`;
+  return `
+    <span class="pop-tag" style="background:${c}">${tag}</span>
+    <p class="pop-name">${p.name}</p>
+    ${meta.length?`<p class="pop-meta">${meta.join("")}</p>`:""}
+    <p class="pop-note">${p.note}</p>
+    ${p.lunch?`<p class="pop-lunch">🍴 午餐：${p.lunch}</p>`:""}
+    ${p.mealAnchor?mealBlock(p):""}
+    <a class="pop-link" style="background:${c}" target="_blank" rel="noopener" href="${gmapCid}">在 Google 地圖開啟 ↗</a>`;
+}
+
+// 建立每日圖層（路線 + 標記）
+for(let d=1; d<=5; d++){
+  const grp=L.layerGroup();
+  const pts=byDay[d];
+  // 路線：串接當日依序地點；非首日從前一晚住宿起點延伸
+  const linePts=[];
+  if(d>1){
+    const prevStay=byDay[d-1].find(x=>x.kind==="stay");
+    if(prevStay) linePts.push([prevStay.lat,prevStay.lng]);
+  }
+  pts.forEach(p=>linePts.push([p.lat,p.lng]));
+  L.polyline(linePts,{color:COLORS[d],weight:3.5,opacity:.75,dashArray:"1 8",lineCap:"round"}).addTo(grp);
+
+  pts.forEach(p=>{
+    const m=L.marker([p.lat,p.lng],{icon:markerIcon(p),title:p.name});
+    m.bindPopup(popupHtml(p),{maxWidth:280});
+    m.addTo(grp);
+    allMarkerBounds.push([p.lat,p.lng]);
+  });
+  layers[d]=grp;
+  grp.addTo(map);
+}
+
+const fullBounds=L.latLngBounds(allMarkerBounds);
+function fitAll(){ map.fitBounds(fullBounds,{padding:[60,60]}); }
+fitAll();
+
+// 建立側邊日程列
+const rail=document.getElementById('rail');
+for(let d=1; d<=5; d++){
+  const btn=document.createElement('button');
+  btn.className='day';
+  btn.setAttribute('aria-pressed','true');
+  btn.innerHTML=`
+    <span class="num" style="background:${COLORS[d]}">${d}</span>
+    <span class="meta">
+      <span class="dname">${DAYS[d].label}</span>
+      <span class="dnote">${DAYS[d].spots}</span>
+    </span>
+    <span class="dot" style="background:${COLORS[d]}"></span>`;
+  btn.addEventListener('click',()=>focusDay(d,btn));
+  rail.appendChild(btn);
+}
+const dayButtons=[...rail.querySelectorAll('.day')];
+
+// 點某日：只顯示該日並縮放
+function focusDay(d,btn){
+  for(let k=1;k<=5;k++){ if(map.hasLayer(layers[k])) map.removeLayer(layers[k]); visible[k]=false; }
+  layers[d].addTo(map); visible[d]=true;
+  dayButtons.forEach((b,i)=>{const on=(i+1)===d; b.classList.toggle('off',!on); b.setAttribute('aria-pressed',on);});
+  const b=L.latLngBounds(byDay[d].map(p=>[p.lat,p.lng]));
+  map.fitBounds(b,{padding:[70,70],maxZoom:12});
+}
+
+document.getElementById('allBtn').addEventListener('click',()=>{
+  for(let k=1;k<=5;k++){ layers[k].addTo(map); visible[k]=true; }
+  dayButtons.forEach(b=>{b.classList.remove('off');b.setAttribute('aria-pressed','true');});
+});
+document.getElementById('fitBtn').addEventListener('click',()=>{
+  for(let k=1;k<=5;k++){ layers[k].addTo(map); visible[k]=true; }
+  dayButtons.forEach(b=>{b.classList.remove('off');b.setAttribute('aria-pressed','true');});
+  fitAll();
+});
+</script>
+</body>
+</html>
